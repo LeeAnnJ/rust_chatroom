@@ -1,11 +1,13 @@
-use std::net::TcpStream;
+use std::net::{TcpStream};
 use std::io::{self,ErrorKind,Read,Write};
 use std::sync::mpsc::{self,TryRecvError};
 use std::time::Duration;
 use std::thread;
 use std::str;
+use chrono::prelude::*;
 
 mod utils;
+use client::utils::TextMessage;
 
 const LOCAL_HOST:&str = "localhost:8000"; // 服务端地址
 const MESSAGE_SIZE:usize = 1024; //缓冲区大小
@@ -23,7 +25,7 @@ fn main(){
     client.set_nonblocking(true)
         .expect("Failed to intiate non-bolcking");
     // 实例化信道，信道传输的数据类型设置为String
-    let (sender,receiver) = mpsc::channel::<String>();
+    let (sender,receiver) = mpsc::channel::<TextMessage>();
     
     // 接收消息部分
     thread::spawn(move || loop{
@@ -34,7 +36,15 @@ fn main(){
                     .take_while(|&x| x!=0)
                     .collect::<Vec<_>>();
                 let message_string = str::from_utf8(&message).unwrap();
-                println!("Receive: {}",message_string);
+                match message_string.parse::<TextMessage>(){
+                    Ok(text_message) => {
+                        println!("Receive from {}({}): {}",text_message.from,text_message.m_date,text_message.content);
+                    }
+                    Err(_) => {
+                        println!("Error happen when message transform.");
+                    }
+                } 
+                
             },
             Err(ref err) if err.kind() == ErrorKind::WouldBlock =>(),
             Err(_) =>{
@@ -65,21 +75,22 @@ fn main(){
             .expect("Failed to read from stdin");
         let message = buffer.trim().to_string();
         let mut msg = message.clone();
-        if message == "exit" || sender.send(message).is_err() {
+        if message == "exit" {
             break;
         }
 
         // 为消息创建消息体
-        // let text_message = utils::TextMessage{
-        //     from: String::from("(send_address)"),
-        //     to: String::from("(receive_address)"),
-        //     content: message.clone(),
-        //     m_date: Utc::now().to_string();
-        // };
+        let text_message = TextMessage{
+            from: String::from("send_address"),
+            to: String::from("receive_address"),
+            content: message.clone(),
+            m_date: Utc::now().to_string()
+        };
 
-        if sender.send(msg.clone()).is_err(){
+        if sender.send(text_message).is_err(){
             break;
         }
+        
         println!("Send Message: [{}]",msg);
     }
 

@@ -1,8 +1,13 @@
 use std::net::TcpListener;
+use std::ptr::null;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::io::{ErrorKind,Read,Write};
 use std::time::Duration;
+// use chrono::prelude::*;
+
+mod utils;
+// use server::utils::TextMessage;
 
 const LOCAL_HOST:&str ="localhost:8000"; //监听地址和端口，先试试这样行不行
 const MESSAGE_SIZE:usize = 1024; // 信息的缓冲区大小
@@ -27,7 +32,8 @@ fn main() {
     loop{
         // 接收连接 (TCPStream,SocketAddr)
         if let Ok((mut socket,address)) = listener.accept() {
-            println!("Client {} Connected.",address);
+            let port = address.port();
+            println!("Client port {} Connected.",port);
             // 向数组插入客户端对象
             clients.push(socket.try_clone().expect("Failed to clone client"));
             
@@ -37,7 +43,7 @@ fn main() {
             // 创建子线程
             thread::spawn(move || loop{
                 // 创建一个消息缓存区
-                let mut buffer =vec![0;32];
+                let mut buffer =vec![0;MESSAGE_SIZE];
                 // 读取TCP流中的消息
                 match socket.read_exact(&mut buffer){
                     Ok(_) =>{
@@ -70,14 +76,16 @@ fn main() {
         // 从队列获取消息
         if let Ok(message) = receiver.try_recv(){ 
             let msg = message.clone();
-            println!("Receive message: [{}]",msg);
-            // 转发给每一个客户端
-            clients =clients.into_iter().filter_map(|mut client|{
-                // 将消息队列放入缓冲区
-                let mut buffer = message.clone().into_bytes();
-                buffer.resize(MESSAGE_SIZE,0);
-                client.write_all(&buffer).map(|_| client).ok()
-            }).collect::<Vec<_>>();
+            if !msg.is_empty() {
+                println!("Receive message: [{}]",msg);
+                // 转发给每一个客户端
+                clients =clients.into_iter().filter_map(|mut client|{
+                    // 将消息队列放入缓冲区
+                    let mut buffer = message.clone().into_bytes();
+                    buffer.resize(MESSAGE_SIZE,0);
+                    client.write_all(&buffer).map(|_| client).ok()
+                }).collect::<Vec<_>>();
+            }
         }
         sleep();
     }
