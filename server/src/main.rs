@@ -1,92 +1,109 @@
-use std::net::TcpListener;
-use std::ptr::null;
-use std::sync::mpsc::{self, Receiver};
-use std::thread;
-use std::io::{ErrorKind,Read,Write};
-use std::time::Duration;
-// use chrono::prelude::*;
+use std::{convert::Infallible, io};
+use actix_files::{Files, NamedFile};
+use actix_web::{
+    get, post, App, HttpRequest, HttpServer, web, error, HttpResponse, middleware, Either, Responder, Result,
+    http::{
+        header::{self, ContentType},
+        Method, StatusCode,
+    },
+};
+use serde::Deserialize;
+use async_stream::stream;
 
-mod utils;
-// use server::utils::TextMessage;
-
-const LOCAL_HOST:&str ="localhost:8000"; //监听地址和端口，先试试这样行不行
-const MESSAGE_SIZE:usize = 1024; // 信息的缓冲区大小
-
-// 休眠功能
-fn sleep(){ 
-    thread::sleep(Duration::from_millis(100));
+// 在这里指明路径参数，并使用元组接收，同时确定类型
+async fn getMyfuction(path:web::Path<String,>) -> HttpResponse {
+    println!("get hello path");
+    HttpResponse::Ok()
+    .content_type(ContentType::plaintext())
+    .body(format!("Hello {}!", path.into_inner()))
 }
 
-fn main() {
-    // 创建TCP监听器
-    let listener =TcpListener::bind(LOCAL_HOST)
-        .expect("Failed to create TCPListener");
-    // 设置非阻塞模式 
-    listener.set_nonblocking(true)
-        .expect("Cannot set non-blocking");
-    // 保存所有连接到服务端的客户端
-    let mut clients = vec![];
-    // 实例化信道，信道传输的数据类型设置为String
-    let (sender,receiver) = mpsc::channel::<String>();
+#[get("/t1/{id}/{name}")]
+async fn get1(path: web::Path<(i32, String)>) -> String {
+    println!("{:?}", path.into_inner());
+    "ok".to_string()
+}
+
+#[derive(Debug, Deserialize)]
+struct User {
+    id: i32,
+    name: String,
+}
+
+// 使用结构体接收
+#[get("/t2/{id}/{name}")]
+async fn get2(user: web::Path<User>) -> String {
+    println!("{:?}", user.into_inner());
+    "ok".to_string()
+}
+
+// 使用查询参数解析，不建议，因为这是类型不安全的
+#[get("/t3/{id}/{name}")]
+async fn get3(req: HttpRequest) -> String {
+    let id: i32 = req.match_info().query("id").parse().unwrap();
+    let name: String = req.match_info().query("name").parse().unwrap();
+    println!("{}, {}", id, name);
+    "ok".to_string()
+}
+
+
+// 查询参数绑定
+#[get("/t4")]
+async fn get4(user: web::Query<User>) -> String {
+    println!("{:?}", user.into_inner());
+    "ok".to_string()
+}
+
+// 使用json解析
+#[post("/t1")]
+async fn post1(user: web::Json<User>) -> HttpResponse {
+    println!("get post t1");
+    HttpResponse::Ok()
+    .content_type(ContentType::plaintext())
+    .body(format!("get post path!: {:?}", user.into_inner()))
+}
+
+// 使用json解析
+#[post("/t2")]
+async fn post2(user: web::Form<User>) -> String {
+    println!("{:?}", user.into_inner());
+    "ok".to_string()
+}
+
+/// 请求连接：
+/// get@/t1/123/aaa
+/// get@/t2/123/aaa
+/// get@/t3/123/aaa
+/// get@/t4?id=123&name=aaa
+/// post@/t1 {"id": 123,"name": "aaa"}
+/// post@/t2 id: 123, name: "aaa"
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    // 创建一个json解析配置，并用于处理json解析
     
-    loop{
-        // 接收连接 (TCPStream,SocketAddr)
-        if let Ok((mut socket,address)) = listener.accept() {
-            let port = address.port();
-            println!("Client port {} Connected.",port);
-            // 向数组插入客户端对象
-            clients.push(socket.try_clone().expect("Failed to clone client"));
-            
-            // 开始接收消息
-            // 复制一个消息队列的生产者
-            let sd = sender.clone();
-            // 创建子线程
-            thread::spawn(move || loop{
-                // 创建一个消息缓存区
-                let mut buffer =vec![0;MESSAGE_SIZE];
-                // 读取TCP流中的消息
-                match socket.read_exact(&mut buffer){
-                    Ok(_) =>{
-                        // 从缓冲区读取信息
-                        let message = buffer.into_iter()
-                            .take_while(|&x| x!=0)
-                            .collect::<Vec<_>>();
-                        // 将信息转换为utf8格式
-                        let message = String::from_utf8(message)
-                            .expect("Invalid utf8 message");
-                        // 将消息发送到消息队列
-                        sd.send(message)
-                            .expect("Failed to send message to receiver");
-                    },
-                    // 阻塞错误
-                    Err(ref err) if err.kind() == ErrorKind::WouldBlock => (),
-                    // 其他错误
-                    Err(_) =>{
-                        // 在这里处理
-                        // 结束线程
-                        break;
-                    }
-                }
-                // 线程休眠
-                sleep();
-            });
-        }
-        
-        // 开始转发消息部分
-        // 从队列获取消息
-        if let Ok(message) = receiver.try_recv(){ 
-            let msg = message.clone();
-            if !msg.is_empty() {
-                println!("Receive message: [{}]",msg);
-                // 转发给每一个客户端
-                clients =clients.into_iter().filter_map(|mut client|{
-                    // 将消息队列放入缓冲区
-                    let mut buffer = message.clone().into_bytes();
-                    buffer.resize(MESSAGE_SIZE,0);
-                    client.write_all(&buffer).map(|_| client).ok()
-                }).collect::<Vec<_>>();
-            }
-        }
-        sleep();
-    }
+
+    let json_config = web::JsonConfig::default()
+        .limit(4096)
+        .error_handler(|err, _req| {
+            error::InternalError::from_response(err, HttpResponse::Conflict().finish())
+                .into()
+        });
+
+    println!("starting HTTP server at 127.0.0.1:8080");
+    HttpServer::new(move || {
+        App::new()
+            .service(get1)
+            .service(get2)
+            .service(get3)
+            .service(get4)
+            .service(web::resource("/hello/{name}")
+                .route(web::get().to(getMyfuction)))
+            // 这个配置只会影响json解析，不会影响其他类型的解析
+            .app_data(json_config.clone())
+            .service(post1)
+            .service(post2)
+        })
+        .bind("127.0.0.1:8080")?
+        .run()
+        .await
 }
