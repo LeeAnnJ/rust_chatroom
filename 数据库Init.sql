@@ -36,3 +36,25 @@ delete from meslog where mesID = 1;
 select * from meslog;
 
 -- 因为使用的是自增ID， 可存约43亿次的信息。
+
+-- 好友关系表：序号，本方id，好友id 
+create table  friends(
+	fID int not null primary key auto_increment,
+    sID int not null,
+    rID int not null
+);
+select * from friends;
+
+-- 新建好友关系：双向建立 
+insert into friends(sID,rID) values(1,2);
+insert into friends(sID,rID) values(2,1);
+
+-- 查询双方是否为好友：避免重复添加等操作 查1和2，虽然记录是双向添加，查一个就行,有记录则是好友，没有就不是。
+select * from friends where sID=1 AND rID=2;
+
+-- 查询所有好友关系：只获取所有好友的id，例查询1的好友
+select rID from friends where sID=1;
+
+-- 删除好友关系：双向删除 如1删2
+delete from friends where (sID=1 and rID=2) or (sID=2 and rID=1);
+
