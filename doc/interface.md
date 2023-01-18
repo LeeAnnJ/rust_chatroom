@@ -57,14 +57,15 @@
 请求参数：
 ```json
 {
-    "id(或者换成name)":"xxx",
+    "name":"xxx",
     "password": "xxx"
 }
 ```
 若登录成功，返回：
 ```json
 {
-    "result": true
+    "result": true,
+    "id": 000
 }
 ```
 若登录失败，返回：

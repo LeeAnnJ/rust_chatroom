@@ -1,8 +1,9 @@
-use std::{convert::Infallible, io};
+use std::{convert::Infallible, io, env};
 use actix::{Actor,StreamHandler};
 use actix_files::{Files, NamedFile};
 use actix_web::{
-    get, post, App, HttpRequest, HttpServer, web, error, HttpResponse, middleware, Either, Responder, Result,
+    get, post, App, HttpRequest, HttpServer, web, error, HttpResponse, middleware, Either, Responder, Result, 
+    web::Data,
     http::{
         header::{self, ContentType},
         Method, StatusCode,
@@ -10,122 +11,97 @@ use actix_web::{
 };
 use actix_web_actors::ws::{self, Message, WebsocketContext};
 use serde::Deserialize;
+use serde_json::json;
 use async_stream::stream;
 
-pub struct WsConn {
-    pub nick: String,
-}
+// extern crate chrono;
+extern crate dotenv;
+extern crate sqlx;
 
-impl Actor for WsConn {
-    type Context = WebsocketContext<Self>;
-    /// 连接上
-    fn started(&mut self, _: &mut Self::Context) {
-        println!("{} join!", self.nick);
-    }
+use dotenv::dotenv;
+use sqlx::{
+    mysql::{MySqlPoolOptions, MySql},
+    Pool,Error,FromRow, Row
+};
 
-    /// 断开连接
-    fn stopped(&mut self, _: &mut Self::Context) {
-        println!("{} exit!", self.nick);
-    }
-}
-
-impl StreamHandler<Result<Message, ws::ProtocolError>> for WsConn {
-    fn handle(&mut self, item: Result<Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match item {
-            Ok(Message::Text(text)) => ctx.text(text),
-            Ok(Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(Message::Binary(bin)) => ctx.binary(bin),
-            Ok(Message::Close(reason)) => ctx.close(reason),
-            _ => (),
-        }
-    }
-}
-
-#[get("/ws/{nick}")]
-async fn index(req: HttpRequest, stream: web::Payload, params: web::Path<String>) 
--> HttpResponse {
-    let conn = WsConn {
-        nick: params.to_string(),
-    };
-    let resp = actix_web_actors::ws::start(conn, &req, stream);
-    match resp {
-        Ok(ret) => ret,
-        Err(e) => e.error_response(),
-    }
-}
-
-// 在这里指明路径参数，并使用元组接收，同时确定类型
-async fn getMyfuction(path:web::Path<String,>) -> HttpResponse {
-    println!("get hello path");
-    HttpResponse::Ok()
-    .content_type(ContentType::plaintext())
-    .body(format!("Hello {}!", path.into_inner()))
-}
-
-#[get("/t1/{id}/{name}")]
-async fn get1(path: web::Path<(i32, String)>) -> String {
-    println!("{:?}", path.into_inner());
-    "ok".to_string()
+struct AppState {
+    pool: Pool<MySql>
 }
 
 #[derive(Debug, Deserialize)]
-struct User {
+pub struct User {
     id: i32,
     name: String,
+    password: String,
+}
+
+impl User {
+    async fn login (self, pool: &Pool<MySql>) -> Result<i32, sqlx::Error>{
+        let sql = format!("select * from users where uName='{}' and PW='{}';",self.name,self.password);
+        let res = sqlx::query(&sql)
+            .bind(self.name)
+            .bind(self.password)
+            .fetch_all(pool)
+            .await;
+        match res {
+            Ok(rows) => {
+                if rows.len()>0 {
+                    let id = rows[0].get("ID");
+                    return Ok(id);
+                }
+                else {return Ok(0)};
+            },
+            Err(e) => {
+                println!("sql:{}\n get database query bug",sql);
+                return Err(e);
+            }
+        };
+    }
 }
 
 // 使用结构体接收
-#[get("/t2/{id}/{name}")]
-async fn get2(user: web::Path<User>) -> String {
-    println!("{:?}", user.into_inner());
-    "ok".to_string()
+#[get("/user/login/{name}/{pass}")]
+async fn login(req: HttpRequest, data: web::Data<AppState>) -> HttpResponse{
+    let user = User{
+        id: 0,
+        name: req.match_info().query("name").parse().unwrap(),
+        password: req.match_info().query("pass").parse().unwrap()
+    };
+    println!("{:?}",user);
+    //"ok".to_string()
+    //format!("{:?},{:},{:}",user,user.name,user.password)
+    let pool = &&data.pool;
+    let result = user.login(pool).await.unwrap();
+    if result>0 {
+        HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .json(
+                json!({
+                    "result": true,
+                    "id": result
+                })
+            )
+    }
+    else {
+        HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .json(
+                json!({"result": false})
+            )
+    }
 }
 
-// 使用查询参数解析，不建议，因为这是类型不安全的
-#[get("/t3/{id}/{name}")]
-async fn get3(req: HttpRequest) -> String {
-    let id: i32 = req.match_info().query("id").parse().unwrap();
-    let name: String = req.match_info().query("name").parse().unwrap();
-    println!("{}, {}", id, name);
-    "ok".to_string()
-}
-
-
-// 查询参数绑定
-#[get("/t4")]
-async fn get4(user: web::Query<User>) -> String {
-    println!("{:?}", user.into_inner());
-    "ok".to_string()
-}
-
-// 使用json解析
-#[post("/t1")]
-async fn post1(user: web::Json<User>) -> HttpResponse {
-    println!("get post t1");
-    HttpResponse::Ok()
-    .content_type(ContentType::plaintext())
-    .body(format!("get post path!: {:?}", user.into_inner()))
-}
-
-// 使用json解析
-#[post("/t2")]
-async fn post2(user: web::Form<User>) -> String {
-    println!("{:?}", user.into_inner());
-    "ok".to_string()
-}
-
-/// 请求连接：
-/// get@/t1/123/aaa
-/// get@/t2/123/aaa
-/// get@/t3/123/aaa
-/// get@/t4?id=123&name=aaa
-/// post@/t1 {"id": 123,"name": "aaa"}
-/// post@/t2 id: 123, name: "aaa"
 #[actix_web::main]
 async fn start_actix() -> std::io::Result<()> {
-    // 创建一个json解析配置，并用于处理json解析
+    let db_pool = match start_database().await {
+        Ok(pool) => pool,
+        Err(e) => {
+            println!("error link database: {:?}", e);
+            return Err(std::io::Error::last_os_error());
+        },
+    };
     
-
+    // 创建一个json解析配置，并用于处理json解析
     let json_config = web::JsonConfig::default()
         .limit(4096)
         .error_handler(|err, _req| {
@@ -136,23 +112,35 @@ async fn start_actix() -> std::io::Result<()> {
     println!("starting HTTP server at http://127.0.0.1:8080");
     HttpServer::new(move || {
         App::new()
-            .service(index)
-            .service(get1)
-            .service(get2)
-            .service(get3)
-            .service(get4)
-            .service(web::resource("/hello/{name}")
-                .route(web::get().to(getMyfuction)))
+            
             // 这个配置只会影响json解析，不会影响其他类型的解析
             .app_data(json_config.clone())
-            .service(post1)
-            .service(post2)
+            .app_data(web::Data::new(AppState {
+                pool: db_pool.clone(),
+            }))
+            .service(login)
         })
         .bind("127.0.0.1:8080")?
         .run()
         .await
 }
 
+// 启动数据库连接池
+async fn start_database() -> Result<Pool<MySql>, Error>{
+    dotenv().ok(); // 检测并读取.env文件中的内容，若不存在也会跳过异常
+    let url = &std::env::var("DATABASE_URL").unwrap();
+    println!("database url:{:?}",url);
+    let pool = MySqlPoolOptions::new()
+        .max_connections(100)  // 连接池的上限
+        //.min_connections(10)   // 连接池的下限
+        .acquire_timeout(std::time::Duration::from_secs(10))    // 连接超时时间
+        .max_lifetime(std::time::Duration::from_secs(1800))     // 所有连接的最大生命周期
+        .idle_timeout(std::time::Duration::from_secs(600))      // 空闲连接的生命周期
+        .connect(url)
+        .await;
+    pool
+}
+
 fn main(){
-    start_actix();
+    start_actix().unwrap();
 }

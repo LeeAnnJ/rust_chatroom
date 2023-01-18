@@ -4,6 +4,13 @@
 
 在线聊天室是一个经典的集网络通信与多线程并发的程序设计项目，本课程大作业考虑到两人组的工作量实现的OJ系统不如三人及以上组完善，因此考虑实现在线聊天室作为课程作业.
 
+## 起步
+为了给数据库做一个统一配置，在数据库中创建用户：
+```sql
+CREATE USER 'TO-DO-LIST'@'localhost' IDENTIFIED WITH mysql_native_password BY '123456';
+GRANT ALL PRIVILEGES ON *.* TO 'TO-DO-LIST'@'%';
+```
+
 ## 记录板
 ### 221230
 在actix-web基础上加入了websocket,目前的效果是点开`client\chat_client.html`后，连接地址输入`ws://127.0.0.1:8080/ws/{name}`后可以连接  
