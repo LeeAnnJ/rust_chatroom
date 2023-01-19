@@ -10,7 +10,7 @@ use actix_web::{
     },
 };
 use actix_web_actors::ws::{self, Message, WebsocketContext};
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use serde_json::json;
 use async_stream::stream;
 
@@ -24,72 +24,9 @@ use sqlx::{
     Pool,Error,FromRow, Row
 };
 
-struct AppState {
-    pool: Pool<MySql>
-}
-
-#[derive(Debug, Deserialize)]
-pub struct User {
-    id: i32,
-    name: String,
-    password: String,
-}
-
-impl User {
-    async fn login (self, pool: &Pool<MySql>) -> Result<i32, sqlx::Error>{
-        let sql = format!("select * from users where uName='{}' and PW='{}';",self.name,self.password);
-        let res = sqlx::query(&sql)
-            .bind(self.name)
-            .bind(self.password)
-            .fetch_all(pool)
-            .await;
-        match res {
-            Ok(rows) => {
-                if rows.len()>0 {
-                    let id = rows[0].get("ID");
-                    return Ok(id);
-                }
-                else {return Ok(0)};
-            },
-            Err(e) => {
-                println!("sql:{}\n get database query bug",sql);
-                return Err(e);
-            }
-        };
-    }
-}
-
-// 使用结构体接收
-#[get("/user/login/{name}/{pass}")]
-async fn login(req: HttpRequest, data: web::Data<AppState>) -> HttpResponse{
-    let user = User{
-        id: 0,
-        name: req.match_info().query("name").parse().unwrap(),
-        password: req.match_info().query("pass").parse().unwrap()
-    };
-    println!("{:?}",user);
-    //"ok".to_string()
-    //format!("{:?},{:},{:}",user,user.name,user.password)
-    let pool = &&data.pool;
-    let result = user.login(pool).await.unwrap();
-    if result>0 {
-        HttpResponse::Ok()
-            .content_type(ContentType::json())
-            .json(
-                json!({
-                    "result": true,
-                    "id": result
-                })
-            )
-    }
-    else {
-        HttpResponse::Ok()
-            .content_type(ContentType::json())
-            .json(
-                json!({"result": false})
-            )
-    }
-}
+mod user;
+mod appState;
+use appState::AppState;
 
 #[actix_web::main]
 async fn start_actix() -> std::io::Result<()> {
@@ -111,14 +48,14 @@ async fn start_actix() -> std::io::Result<()> {
 
     println!("starting HTTP server at http://127.0.0.1:8080");
     HttpServer::new(move || {
-        App::new()
-            
+        App::new()            
             // 这个配置只会影响json解析，不会影响其他类型的解析
             .app_data(json_config.clone())
             .app_data(web::Data::new(AppState {
                 pool: db_pool.clone(),
             }))
-            .service(login)
+            .service(user::login)
+            .service(user::registor)
         })
         .bind("127.0.0.1:8080")?
         .run()
