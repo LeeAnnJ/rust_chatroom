@@ -1,25 +1,48 @@
 <template>
   <div class="Room" ref="room">
     <div class="room-left">
+      <div class="user">
+        <span class="icon iconfont icon-wode"></span>
+        <span class="iname">个人</span>
+      </div>
+      <div class="friend" @click="showFriend()">
+        <span class="icon iconfont icon-fenzu"></span>
+        <span class="iname">好友</span>
+      </div>
+      <div class="group" @click="showGroup()">
+        <span class="icon iconfont icon-duihua"></span>
+        <span class="iname">群聊</span>
+      </div>
+      <div class="exit" @click="goLogin()">
+        <span class="icon iconfont icon-guanbi1"></span>
+        <span class="iname">退出</span>
+      </div>
+      
     </div>
 
     <div class="room-center">
       <div class="center-h">
-        <p>好友列表</p>
+        <p v-if="isGroup">群聊列表</p>
+        <p v-else>好友列表</p>
         <p />
       </div>
       <div class="center-b">
-        <!-- <ul>
-          <li class="user-item" v-for="item in userList" :key="item.username">
-            <img :src="require('@/assets/avatar/' + item.avatar)" alt />
-            <span>{{item.username}}</span>
+        <div v-if="isGroup">
+          <li class="user-item" v-for="item in groupList" :key="item.gName" @click="goPublic()">
+            <span>{{item.gName}}</span>
           </li>
-        </ul> -->
+        </div>
+        <div v-else>
+          <li class="user-item" v-for="item in userList" :key="item.uName" @click="changeWindow(item.uName)">
+            <span>{{item.uName}}</span>
+          </li>
+        </div>
       </div>
     </div>
 
     <div class="room-right">
         <div class="ChatContent" ref="chat">
+          <div class="title">{{title}}</div>
           <div class="join">
             <!-- 消息框 -->
             <li v-for="(item,index) in messageContent" 
@@ -66,12 +89,46 @@
     data() {
       return {
         username: 'test',
+        title: '公共聊天室',  //用於聊天框頂部顯示
+        isGroup: false, // 用于切换好友群聊列表
+        ispublic: true, //用於判斷是否和好友私聊
         messageContent: [],
         content: '',
-        user: {username:'test'}
+        user: {username:'test'},
+        userList: [{
+                "ID": 3,
+                "uName": "xixi"
+            },{
+                "ID": 2,
+                "uName": "nono"
+            }
+        ],
+        groupList:[{"gName":"公共聊天室"}]
       }
     },
     methods: {
+      showGroup(){
+        this.isGroup = true;
+      },
+      showFriend(){
+        this.isGroup = false;
+      },
+      goLogin(){
+        this.$parent.returnLogin();
+      },
+      changeWindow(uName){
+        this.ispublic = false;
+        this.title = uName;
+        // 清屏
+        this.messageContent = [];
+        // 更改title 更改聯繫人
+      },
+      goPublic(){
+        this.title = "公共聊天室";
+        this.ispublic = true;
+        // 清屏
+        this.messageContent = [];
+      },
       handlePress(){
         let tmp = this.$refs.textarea.value
         //需要一个判断是否全为换行符的
@@ -148,11 +205,28 @@
     flex-direction: column;
     align-items: center;
     padding-top: 10px;
-    .icon-liaotianqingqiu,
-    .icon-yonghu {
-      font-size: 24px;
-      padding-top: 10px;
+    .iconfont {
+      display: block;
+      font-family: iconfont !important;
+      font-style: normal;
+    }
+    .user,.friend,.group,.exit{
+      padding-bottom: 10px;
       cursor: pointer;
+    }
+    .exit{
+      position: relative;
+      top:240px;
+    }
+    .iname{
+      height: 18px;
+      color: white;
+    }
+    .icon{
+      color: white;
+      height: 30px;
+      font-size: 24px;
+      
     }
     .active {
       color: #ecf0f1;
@@ -181,24 +255,13 @@
     }
     .center-b {
       flex: 1;
-      .user-item-name {
-        padding: 5px 10px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid #e5e5e58c;
-        box-shadow: 1px 1px 1px #2980b9;
-        font-size: 17px;
-      }
       .user-item {
         padding: 5px 10px;
-        height: 40px;
+        height: 20px;
         display: flex;
         align-items: center;
-        img {
-          width: 40px;
-          height: 40px;
-        }
+        margin-bottom: 1px;
+        border-bottom: solid 1px #b2c0c9;
         span {
           margin-left: 5px;
         }
@@ -214,12 +277,17 @@
     .ChatContent {
       height: 355px;
       overflow: auto;
+      .title{
+        margin-top: 3px;
+        height: 26px;
+        border-bottom: solid 1px #b2c0c9;
+      }
       .join {
         height: 325px;
-        margin-top: 30px;
+        // margin-top: 30px;
       li {
           padding-left: 10px;
-          padding-bottom: 5px;
+          padding-bottom: 15px;
         }
       .myMes {
         display: flex;

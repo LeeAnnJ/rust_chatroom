@@ -34,7 +34,8 @@
       </div>
     </div>
     <!-- 这里还没改 -->
-    <room
+    <room v-else />
+    <!-- <room
       v-else
       :user="user"
       :userList="userList"
@@ -42,7 +43,7 @@
       @sendServer="sendServer"
       :message="message"
       @handleFile="handleFile"
-    />
+    /> -->
   </div>
 </template>
 
@@ -57,56 +58,46 @@ export default {
       socket: null,
       isShow: true,
       showWarn: false,
-      user: {},
-      userList: [],
+      user: {}, //當前用戶
+      userList: [], //好友列表
       message: {},
     }
   },
   methods: {
-    // handleFile(file) {
-    //   this.socket.emit('sendImage', { ...this.user, file })
-    // },
-    // clickImg(index, item) {
-    //   this.currentIndex = index
-    //   this.currentImg = item
-    // },
+    returnLogin(){
+      this.isShow = true;
+    },
     goRegister(){
       this.$router.push('/Register');
     },
     loginRoom() {
       // 1.获取用户名
-      const username = this.$refs.inputUsername.value
-      const password = this.$refs.inputPassword.value
-      if (!username.trim()) {
+      const uname = this.$refs.inputUsername.value
+      const pword = this.$refs.inputPassword.value
+      if (!uname.trim()) {
         alert('请输入用户名')
         return
       }
-      if (!password) {
+      if (!pword) {
         alert('请输入密码')
         return
       }
-      this.$api.userApi.login(username,password).then(function(result){
-        if(result){
-          this.$api.userApi.getUserById(username).then(function(_user){
-            user = _user;
+      this.$api.userApi.login(uname,pword).then((result)=>{
+        if(result.result){
+          this.$api.userApi.getUserById({id:result.id}).then((res)=>{
+            this.user = res.user;
           })
-          showWarn = false;
-          isShow = false;
+          this.$api.friendApi.getList({id:result.id}).then((res)=>{
+            this.userList = res.friends;
+          })
+          this.showWarn = false;
+          this.isShow = false;
         }
         else{
-          showWarn = true;
+          this.showWarn = true;
         }
       })
-      // // 2.需要告诉socket io服务，进行登录
-      // this.socket.emit('login', {
-      //   username,
-      //   avatar: this.currentImg,
-      // })
     },
-    // sendServer(content) {
-    //   const { username, avatar } = this.user
-    //   this.socket.emit('sendMessage', { msg: content, username, avatar })
-    // },
   },
   mounted() {
     /**
