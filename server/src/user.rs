@@ -29,8 +29,6 @@ impl User {
     pub async fn login (self, pool: &Pool<MySql>) -> Result<i32, sqlx::Error>{
         let sql = format!("select * from users where uName='{}' and PW='{}';",self.name,self.password);
         let res = sqlx::query(&sql)
-            .bind(self.name)
-            .bind(self.password)
             .fetch_all(pool)
             .await;
         match res {
@@ -73,7 +71,7 @@ impl User {
     }
 }
 
-// 使用结构体接收
+// 登录接口，使用结构体接收
 #[get("/user/login/{name}/{pass}")]
 pub async fn login(req: HttpRequest, data: Data<AppState>) -> HttpResponse{
     let user = User{
@@ -89,8 +87,11 @@ pub async fn login(req: HttpRequest, data: Data<AppState>) -> HttpResponse{
             .content_type(ContentType::json())
             .json(
                 json!({
-                    "result": true,
-                    "id": result
+                    "status":0,
+                    "data": {
+                        "result": true,
+                        "id": result
+                    }
                 })
             )
     }
@@ -98,17 +99,18 @@ pub async fn login(req: HttpRequest, data: Data<AppState>) -> HttpResponse{
         HttpResponse::Ok()
             .content_type(ContentType::json())
             .json(
-                json!({"result": false})
+                json!({
+                    "status": 0,
+                    "data":{"result": false},
+                    "msg": "fail to add uer info to database!"
+                })
             )
     }
 }
 
+// 注册接口
 #[post("/user/registor")]
 pub async fn registor(form: web::Json<User>, data: Data<AppState>) -> HttpResponse{
-    // let user = User{
-    //     name: req.match_info().query("name").parse().unwrap(),
-    //     password: req.match_info().query("pass").parse().unwrap()
-    // };
     let user = form.into_inner();
     println!("in registor function:{:?}",user);
     // format!("{:?},{:},{:}",user,user.name,user.password)
@@ -117,7 +119,79 @@ pub async fn registor(form: web::Json<User>, data: Data<AppState>) -> HttpRespon
     HttpResponse::Ok()
         .content_type(ContentType::json())
         .json( json!({
-            "result": true,
-            "id": result
+            "status": 0,
+            "data":{
+                "result": true,
+                "id": result
+            }
         }))
+}
+
+// 完整的用户信息结构体
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserInfo{
+    ID: i32,
+    PW: String,
+    uName: String
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Text{
+    pub name: String
+}
+
+impl Text {
+    // 根据用户名精准查询用户信息
+    pub async fn search_name (self, pool: &Pool<MySql>) -> Result<Vec<UserInfo>, sqlx::Error>{
+        let mut users = vec![];
+
+        let sql = format!("select * from users where uName='{}';",self.name);
+        let res = sqlx::query(&sql)
+            .fetch_all(pool)
+            .await;
+        match res {
+            Ok(rows) => {
+               for row in rows {
+                    users.push(UserInfo {
+                        ID: row.get("ID"),
+                        PW: row.get("PW"),
+                        uName: row.get("uName")
+                    })
+               }
+               return Ok(users);
+            },
+            Err(e) => {
+                println!("sql:{}\n get database query bug",sql);
+                return Err(e);
+            }
+        };
+    }
+}
+
+// 根据用户名查询信息 接口方法 
+#[get("/user/getUserByName")]
+pub async fn search_user_by_name(req: web::Query<Text>, data: Data<AppState>) -> HttpResponse {
+    let name=req.into_inner();
+    println!("get user name:{:?}",name);
+    let pool = &data.pool;
+    let result = name.search_name(pool).await.unwrap();
+    let res = if result.len()>0 {
+        json!({
+            "status": 0,
+            "data":{
+                "users": result,
+            }
+        })
+    } else {
+        json!({
+            "status": 0,
+            "data":{
+                "users": [],
+            },
+            "msg":"no such name."
+        })
+    };
+    HttpResponse::Ok()
+        .content_type(ContentType::json())
+        .json(res)
 }

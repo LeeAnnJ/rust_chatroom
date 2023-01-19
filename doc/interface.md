@@ -30,6 +30,14 @@
     ]
 }
 ```
+若数据库没有相关信息，返回：
+```json
+{
+    "status": 204,
+    "data":{"users":[]},
+    "msg": "no such name."
+}
+```
 
 #### 2.用户注册
 请求地址：`/user/registor`，请求方式：`post`  
@@ -46,7 +54,8 @@
 成功响应数据：
 ```json
 {
-    "id": "xxx"
+    "id": "xxx",
+    "result": true
 }
 ```
 

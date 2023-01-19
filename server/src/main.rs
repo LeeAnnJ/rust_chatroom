@@ -56,6 +56,7 @@ async fn start_actix() -> std::io::Result<()> {
             }))
             .service(user::login)
             .service(user::registor)
+            .service(user::search_user_by_name)
         })
         .bind("127.0.0.1:8080")?
         .run()
