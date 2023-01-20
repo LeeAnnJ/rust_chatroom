@@ -65,24 +65,24 @@ export default {
       userList: [], //好友列表
       message: {},
       //ws部分
-      path:"ws://localhost", // todo 后端ws地址
+      path:"ws://localhost:8080/ws/", // todo 后端ws地址
       socket: null,
     }
   },
   mounted(){
-    this.wsinit();
+    // this.wsinit();
   },
   destroyed(){
     this.socket.onclose = this.close;
   },
   methods: {
     //ws部分
-    wsinit(){
+    wsinit(uname){
       if(typeof(WebSocket) === "undefined"){
           alert("您的浏览器不支持socket")
       }else{
           // 实例化socket
-          this.socket = new WebSocket(this.path)
+          this.socket = new WebSocket(this.path+uname)
           // 监听socket连接
           this.socket.onopen = this.open
           // 监听socket错误信息
@@ -130,6 +130,9 @@ export default {
       }
       this.$api.userApi.login(uname,pword).then((result)=>{
         if(result.result){
+          //登录成功，连接ws
+          this.wsinit(uname);
+          //传入参数
           this.$api.userApi.getUserById({id:result.id}).then((res)=>{
             this.user = res.user;
           })
