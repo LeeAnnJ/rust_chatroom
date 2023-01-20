@@ -1,8 +1,17 @@
-use std::{convert::Infallible, io, env};
-use actix::{Actor,StreamHandler};
+use std::{
+    io, env,
+    time::Instant,
+    convert::Infallible,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    }
+};
+use actix::*;
 use actix_files::{Files, NamedFile};
 use actix_web::{
-    get, post, App, HttpRequest, HttpServer, web, error, HttpResponse, middleware, Either, Responder, Result, 
+    get, post, App, HttpRequest, HttpServer, web, error, Error, HttpResponse, middleware, Either, Responder, Result, 
+    middleware::Logger,
     web::Data,
     http::{
         header::{self, ContentType},
@@ -21,7 +30,7 @@ extern crate sqlx;
 use dotenv::dotenv;
 use sqlx::{
     mysql::{MySqlPoolOptions, MySql},
-    Pool,Error,FromRow, Row
+    Pool,FromRow, Row
 };
 
 mod controll;
@@ -29,9 +38,15 @@ use controll::{user, friend, message};
 mod appState;
 use appState::AppState;
 mod entity;
+mod websocket;
+use websocket::{server, session};
 
 #[actix_web::main]
 async fn start_actix() -> std::io::Result<()> {
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+    // 服务器存储部分
+    // 数据库连接池
     let db_pool = match start_database().await {
         Ok(pool) => pool,
         Err(e) => {
@@ -47,8 +62,12 @@ async fn start_actix() -> std::io::Result<()> {
             error::InternalError::from_response(err, HttpResponse::Conflict().finish())
                 .into()
         });
+    // 记录群聊在线人数
+    let app_state = Arc::new(AtomicUsize::new(0));
+    // 群聊websocket服务
+    let server = server::ChatServer::new(app_state.clone(),db_pool.clone()).start();
 
-    println!("starting HTTP server at http://127.0.0.1:8080");
+    log::info!("starting HTTP server at http://127.0.0.1:8080");
     HttpServer::new(move || {
         App::new()            
             // 这个配置只会影响json解析，不会影响其他类型的解析
@@ -56,6 +75,10 @@ async fn start_actix() -> std::io::Result<()> {
             .app_data(web::Data::new(AppState {
                 pool: db_pool.clone(),
             }))
+            .app_data(web::Data::from(app_state.clone()))
+            .app_data(web::Data::new(server.clone()))
+            .route("/join/{ID}/{uName}", web::get().to(websocket::chat_route))
+            .route("/count", web::get().to(websocket::get_count))
             .service(user::login)
             .service(user::registor)
             .service(user::search_user_by_name)
@@ -66,14 +89,16 @@ async fn start_actix() -> std::io::Result<()> {
             .service(message::add_message)
             .service(message::get_message_list)
             .service(message::set_message_read)
+            .wrap(Logger::default())
         })
+        .workers(2)
         .bind("127.0.0.1:8080")?
         .run()
         .await
 }
 
 // 启动数据库连接池
-async fn start_database() -> Result<Pool<MySql>, Error>{
+async fn start_database() -> Result<Pool<MySql>, sqlx::Error>{
     dotenv().ok(); // 检测并读取.env文件中的内容，若不存在也会跳过异常
     let url = &std::env::var("DATABASE_URL").unwrap();
     println!("database url:{:?}",url);

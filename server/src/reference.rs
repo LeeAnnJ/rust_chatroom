@@ -76,7 +76,7 @@ struct User {
 }
 
 // 使用结构体接收
-#[get("/t2/{name}/{name}")]
+#[get("/t2/{id}/{name}")]
 async fn get2(user: web::Path<User>) -> String {
     println!("{:?}", user.into_inner());
     "ok".to_string()

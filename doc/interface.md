@@ -261,10 +261,44 @@
 ```
 
 ## 传输层部分：ws开头
-我目前不是很确定这部分的接口，如果遇到问题的话之后调整
+先规定websocket需要传输的数据结构：
 
-1. 与服务器连接 接口地址：`/link/{userID}`
-2. 创建聊天室 接口地址：`/createRoom/{roomName}`
-3. 获取当前建立的聊天室：`/list`
-4. 进入聊天室：`/enter/{userName}/{roomName}`
-5. 删除聊天室：`/delete/{roomName}`
+客户信息：用于记录连接状态
+```json
+{
+    "ID": 1,
+    "uName": "xxx"
+}
+```
+群聊信息：
+```json
+{
+    "isPublic": true,
+    "sID": 0,
+    "sName": "xxx",
+    "rID": 0,
+    "mes": "xxx",
+    "time": "xxx",
+}
+```
+私聊信息：
+```json
+{
+    "isPublic": false,
+    "sID": 0,
+    "rID": 0,
+    "mes": "xxx",
+    "time": "xxx"
+}
+```
+
+1. 与服务器连接 接口地址：`ws://127.0.0.1:8080/link/{ID}/uName`  
+2. 发送消息  
+   发送数据格式按上面发送
+   ```
+   {"isPublic":true,"sID":0,"rTD":0,"mes":"xxx"}
+   ```
+3. 创建聊天室 接口地址：`/createRoom/{roomName}` (暂时搁置)
+4. 获取当前建立的聊天室：`/list` (暂时搁置)
+5. 进入聊天室：`/enter/{userName}/{roomName}`（暂时搁置）
+6. 删除聊天室：`/delete/{roomName}` （暂时搁置）
