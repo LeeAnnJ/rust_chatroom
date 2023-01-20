@@ -24,9 +24,11 @@ use sqlx::{
     Pool,Error,FromRow, Row
 };
 
-mod user;
+mod controll;
+use controll::{user,friend};
 mod appState;
 use appState::AppState;
+mod entity;
 
 #[actix_web::main]
 async fn start_actix() -> std::io::Result<()> {
@@ -57,6 +59,8 @@ async fn start_actix() -> std::io::Result<()> {
             .service(user::login)
             .service(user::registor)
             .service(user::search_user_by_name)
+            .service(user::search_user_by_id)
+            .service(friend::create_friend)
         })
         .bind("127.0.0.1:8080")?
         .run()

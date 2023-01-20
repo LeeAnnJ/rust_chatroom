@@ -1,3 +1,5 @@
+use std::ptr::null;
+
 use serde::{Serialize, Deserialize};
 use actix_web::{
     get, post, HttpRequest, HttpServer, web, error, HttpResponse, middleware, Either, Responder, Result, 
@@ -17,6 +19,7 @@ use sqlx::{
 };
 
 use crate::appState::AppState;
+use crate::entity::ReqID;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {
@@ -113,8 +116,21 @@ pub async fn login(req: HttpRequest, data: Data<AppState>) -> HttpResponse{
 pub async fn registor(form: web::Json<User>, data: Data<AppState>) -> HttpResponse{
     let user = form.into_inner();
     println!("in registor function:{:?}",user);
-    // format!("{:?},{:},{:}",user,user.name,user.password)
     let pool = &data.pool;
+    let name = Text{name: (&user.name).to_string()};
+    let res = name.search_name(pool).await.unwrap();
+    if res.len()>0 {
+        return HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .json( json!({
+                "status": 400,
+                "data":{
+                    "result": false,
+                },
+                "msg": "account name has been used!"
+            }))
+    }
+
     let result = user.registor(pool).await.unwrap();
     HttpResponse::Ok()
         .content_type(ContentType::json())
@@ -130,9 +146,9 @@ pub async fn registor(form: web::Json<User>, data: Data<AppState>) -> HttpRespon
 // 完整的用户信息结构体
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UserInfo{
-    ID: i32,
-    PW: String,
-    uName: String
+    pub ID: i32,
+    pub PW: String,
+    pub uName: String
 }
 
 #[derive(Debug, Deserialize)]
@@ -194,4 +210,33 @@ pub async fn search_user_by_name(req: web::Query<Text>, data: Data<AppState>) ->
     HttpResponse::Ok()
         .content_type(ContentType::json())
         .json(res)
+}
+
+// 根据用户id返回用户
+#[get("/user/getUserById")]
+pub async fn search_user_by_id(req: web::Query<ReqID>, data: Data<AppState>) -> HttpResponse {
+    let id = req.into_inner();
+    println!("get user by id:{:?}",id);
+    let pool = &data.pool;
+    let result = id.search_user_id(pool).await;
+    let res = match result {
+        Ok(user) => {
+            json!({
+                "status": 0,
+                "data": {
+                    "user": user
+                },
+            })
+        },
+        Err(e) => {
+            json!({
+                "status": 400,
+                "data":{"user": null },
+                "msg": "can't find user in database!"
+            })
+        }
+    };
+    HttpResponse::Ok()
+    .content_type(ContentType::json())
+    .json(res)
 }
