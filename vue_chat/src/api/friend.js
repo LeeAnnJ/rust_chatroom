@@ -7,11 +7,11 @@ import querystring from 'querystring';
 
 const friendApi = {
     create(params){
-        return axios.post('/friend/create',params); 
+        return axios.post('api/friend/create',params); 
         // return axios.post('/friend/create',querystring.stringify(params)); 
     },
     getList(params){
-        return axios.get('/friend/getList',{params:params});
+        return axios.get('api/friend/getList',{params:params});
     }
 };
 

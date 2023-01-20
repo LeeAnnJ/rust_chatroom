@@ -7,15 +7,15 @@ import querystring from 'querystring';
 
 const mesApi = {
     addmessage(params){
-        return axios.post('/message/addmessage',params); 
+        return axios.post('api/message/addmessage',params); 
         // return axios.post('/message/addmessage',querystring.stringify(params)); 
     },
     setRead(params){
-        return axios.post('/message/setRead',params); 
+        return axios.post('api/message/setRead',params); 
         // return axios.post('/message/setRead',querystring.stringify(params)); 
     },
     getList(params){
-        return axios.get('/message/getList',{params:params});
+        return axios.get('api/message/getList',{params:params});
     }
 };
 

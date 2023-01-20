@@ -76,18 +76,22 @@ export default {
         alert('请输入密码')
         return
       }
-      this.$api.userApi.getUserByName(username).then(function(users){
+      this.$api.userApi.getUserByName({name:username}).then((res)=>{
         // 这里的判断是否写的合理？还是写 if(users)?
-        if(users.length > 0){
+        // console.log(res.users.length);
+        if(res.users.length > 0){
           this.showWarn = true;
         }
         else{
-          this.$api.userApi.register(username,password).then(function(uid){
+          this.$api.userApi.register({name:username,password:password}).then((res)=>{
+            console.log(res);
             // userId = uid;
             this.showID = true;
           })
         }
       })
+      // this.showWarn = warn;
+      // console.log(this.showWarn);
       // // 2.需要告诉socket io服务，进行登录
       // this.socket.emit('container', {
       //   username,
