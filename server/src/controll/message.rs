@@ -21,7 +21,7 @@ use sqlx::{
 use chrono::prelude::*;
 
 use crate::appState::AppState;
-use crate::entity::{ SendMessage, Relation };
+use crate::entity::{ SendMessage, Relation, IDList };
 
 // 添加消息记录
 #[post("/message/addmessage")]
@@ -54,12 +54,36 @@ pub async fn get_message_list (form: web::Query<Relation>, data: Data<AppState>)
     let relation = form.into_inner();
     println!("get message list:{:?}",relation);
     let pool = &data.pool;
-    let result = relation.get_record(pool).await.unwrap();
+    let result = relation.get_record(pool,false).await.unwrap();
     let res = json!({
             "status": 0,
             "data":{"messagelist": result},
             "msg":"sucess"
     });
+    HttpResponse::Ok()
+    .content_type(ContentType::json())
+    .json(res)
+}
+
+#[post("/message/setRead")]
+pub async fn set_message_read (form: web::Json<IDList>, data: Data<AppState>) -> HttpResponse {
+    let meslist = form.into_inner();
+    println!("set message read:{:?}",meslist);
+    let pool = &data.pool;
+    let result = meslist.set_read(pool, true).await.unwrap();
+    let res = if result>0 {
+        json!({
+            "status": 0,
+            "data":{"affect-row": result},
+            "msg":"sucess"
+        })
+    } else {
+        json!({
+            "status": 400,
+            "data":{"result":false},
+            "msg": "no record is affected."
+        })
+    };
     HttpResponse::Ok()
     .content_type(ContentType::json())
     .json(res)

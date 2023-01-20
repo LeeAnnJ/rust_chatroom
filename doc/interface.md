@@ -104,7 +104,7 @@
 请求参数:
 ```json
 {
-    "text": "xxx"
+    "name": "xxx"
 }
 ```
 响应数据：
@@ -206,10 +206,27 @@
 请求参数：
 ```json
 {
-    "mesID":["xxx","xxx","xxx"],
+    "ids":["xxx","xxx","xxx"],
 }
 ```
-不需要返回数据
+若成功，返回数据
+```json
+{
+    "status":0,
+    "data":{
+        "affect_row": 1
+    },
+    "msg": "success"
+}
+```
+若数据库改动的行数为0，返回数据
+```json
+{
+    "status": 400,
+    "data":{"result":false},
+    "msg": "no record is affected."
+}
+```
 
 #### 3.拉取信息列表
 请求地址：`/message/getList`，请求方式：`get`  

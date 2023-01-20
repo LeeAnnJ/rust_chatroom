@@ -16,17 +16,11 @@ use sqlx::{
     Pool,Error,FromRow, Row
 };
 
-use crate::user::UserInfo;
+use super::{UserInfo, SimpleUser};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReqID {
     pub id: i32
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SimpleUser {
-    pub ID: i32,
-    pub uName: String
 }
 
 impl ReqID {

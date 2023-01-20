@@ -60,10 +60,12 @@ async fn start_actix() -> std::io::Result<()> {
             .service(user::registor)
             .service(user::search_user_by_name)
             .service(user::search_user_by_id)
+            .service(user::search_user_fuzzy)
             .service(friend::create_friend)
             .service(friend::get_list)
             .service(message::add_message)
             .service(message::get_message_list)
+            .service(message::set_message_read)
         })
         .bind("127.0.0.1:8080")?
         .run()

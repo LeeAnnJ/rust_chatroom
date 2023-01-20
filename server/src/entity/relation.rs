@@ -87,8 +87,10 @@ impl Relation {
     }
 
     // 获取聊天记录
-    pub async fn get_record (self, pool: &Pool<MySql>) -> Result<Vec<RecieveMessage>, sqlx::Error>{
-        let sql = format!("SELECT * from meslog where (sID={0} and rID={1}) or (sID={1} and rID={0}) ORDER BY sTime desc;",self.user,self.friend);
+    pub async fn get_record (self, pool: &Pool<MySql>, unread: bool) -> Result<Vec<RecieveMessage>, sqlx::Error>{
+        let mut sql = format!("SELECT * from meslog where (sID={0} or sID={1})",self.user,self.friend);
+        if unread {sql+=" and isread = 0"}
+        sql+=" ORDER BY sTime desc;";
         let res = sqlx::query(&sql)
             .fetch_all(pool)
             .await;
