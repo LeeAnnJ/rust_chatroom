@@ -193,12 +193,9 @@
 请求参数：
 ```json
 {
-    "message":{
-	    "send": "发送方id",
-        "recieve": "接收方id",
-        "message": "xxxx",
-        "time": "yyyy-MM-dd hh:mm:ss"
-    }
+    "send": "发送方id",
+    "recieve": "接收方id",
+    "message": "xxxx",
 }
 ```
 不需要返回数据。
@@ -216,7 +213,7 @@
 
 #### 3.拉取信息列表
 请求地址：`/message/getList`，请求方式：`get`  
-查询两个用户间的聊天记录,按时间排序。
+查询两个用户间的聊天记录,按时间降序排序，即第一条为最新消息
 
 请求参数：
 ```json
@@ -229,17 +226,19 @@
 ```json
 {
     "messageList":[{
-        "mesID": "xxx",
-	    "sID": "xxx",
-        "rID": "xxx",
+        "mesID": 0,
+	    "sID": 0,
+        "rID": 0,
         "mes": "xxx",
-        "sTime": "xxx",
+        "sTime": "yyyy-MM-dd hh:mm:ss",
+        "isread": true,
     },{
-        "mesID": "xxx",
-	    "sID": "xxx",
-        "rID": "xxx",
+        "mesID": 0,
+	    "sID": 0,
+        "rID": 0,
         "mes": "xxx",
         "sTime": "xxx",
+        "isread": true,
     },{...}]
 }
 ```

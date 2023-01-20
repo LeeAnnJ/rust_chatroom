@@ -16,6 +16,18 @@ use sqlx::{
     Pool,Error,FromRow, Row
 };
 
+use chrono::prelude::*;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RecieveMessage {
+    mesID: i32,
+    sID: i32,
+    rID: i32,
+    mes: String,
+    sTime: NaiveDateTime,
+    isread: bool
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Relation {
     pub user: i32,
@@ -72,5 +84,34 @@ impl Relation {
         } else {
             return Ok(0);
         }
+    }
+
+    // 获取聊天记录
+    pub async fn get_record (self, pool: &Pool<MySql>) -> Result<Vec<RecieveMessage>, sqlx::Error>{
+        let sql = format!("SELECT * from meslog where (sID={0} and rID={1}) or (sID={1} and rID={0}) ORDER BY sTime desc;",self.user,self.friend);
+        let res = sqlx::query(&sql)
+            .fetch_all(pool)
+            .await;
+        let mut meslist = vec![];
+        match res {
+            Ok(rows) => {
+                for row in rows {
+                    let i:i64 = row.get("isread");
+                    meslist.push( RecieveMessage {
+                        mesID: row.get("mesID"),
+                        sID: row.get("sID"),
+                        rID: row.get("rID"),
+                        mes: row.get("mes"),
+                        sTime: row.get("sTime"),
+                        isread: if i==0 {false} else {true}
+                    })
+                }
+                return Ok(meslist);
+            },
+            Err(e) => {
+                println!("sql:{}\n get database query bug",sql);
+                return Err(e);
+            }
+        };
     }
 }

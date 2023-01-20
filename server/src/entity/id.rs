@@ -23,6 +23,12 @@ pub struct ReqID {
     pub id: i32
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SimpleUser {
+    pub ID: i32,
+    pub uName: String
+}
+
 impl ReqID {
     // 登录的数据库操作
     pub async fn search_user_id (self, pool: &Pool<MySql>) -> Result<UserInfo, sqlx::Error>{
@@ -41,6 +47,30 @@ impl ReqID {
                     return Ok(user);
                 }
                 else {return Err(sqlx::Error::RowNotFound) };
+            },
+            Err(e) => {
+                println!("sql:{}\n get database query bug",sql);
+                return Err(e);
+            }
+        };
+    }
+
+    // 获取好友列表
+    pub async fn get_friend_list (self, pool: &Pool<MySql>) -> Result<Vec<SimpleUser>, sqlx::Error>{
+        let sql = format!("select rID as ID, uName from friends FS,users US where sID={} and FS.rID=US.ID;",self.id);
+        let res = sqlx::query(&sql)
+            .fetch_all(pool)
+            .await;
+        let mut friends = vec![];
+        match res {
+            Ok(rows) => {
+                for row in rows {
+                    friends.push( SimpleUser { 
+                        ID: row.get("ID"),
+                        uName: row.get("uName")
+                    });
+                }
+                return Ok(friends);
             },
             Err(e) => {
                 println!("sql:{}\n get database query bug",sql);

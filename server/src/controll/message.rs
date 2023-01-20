@@ -18,16 +18,18 @@ use sqlx::{
     Pool,Error,FromRow, Row
 };
 
-use crate::appState::AppState;
-use crate::entity::{Relation,ReqID};
+use chrono::prelude::*;
 
-// 添加好友关系
-#[post("/friend/create")]
-pub async fn create_friend (form: web::Json<Relation>, data: Data<AppState>) -> HttpResponse {
-    let relation = form.into_inner();
-    println!("create relation:{:?}",relation);
+use crate::appState::AppState;
+use crate::entity::{ SendMessage, Relation };
+
+// 添加消息记录
+#[post("/message/addmessage")]
+pub async fn add_message (form: web::Json<SendMessage>, data: Data<AppState>) -> HttpResponse {
+    let message = form.into_inner();
+    println!("add message record:{:?}",message);
     let pool = &data.pool;
-    let result = relation.create_relation(pool).await.unwrap();
+    let result = message.add_record(pool).await.unwrap();
     let res = if result>0 {
         json!({
             "status": 0,
@@ -38,7 +40,7 @@ pub async fn create_friend (form: web::Json<Relation>, data: Data<AppState>) -> 
         json!({
             "status": 400,
             "data": {"result": false},
-            "msg": "fail to create the relationship,parhaps the relationship has been created."
+            "msg": "fail to add message record!"
         })
     };
     HttpResponse::Ok()
@@ -46,15 +48,16 @@ pub async fn create_friend (form: web::Json<Relation>, data: Data<AppState>) -> 
     .json(res)
 }
 
-#[get("/friend/getList")]
-pub async fn get_list (form: web::Query<ReqID>, data: Data<AppState>) -> HttpResponse {
-    let id = form.into_inner();
-    println!("get firends list of :{:?}",id);
+// 添加消息记录
+#[get("/message/getList")]
+pub async fn get_message_list (form: web::Query<Relation>, data: Data<AppState>) -> HttpResponse {
+    let relation = form.into_inner();
+    println!("get message list:{:?}",relation);
     let pool = &data.pool;
-    let result = id.get_friend_list(pool).await.unwrap();
+    let result = relation.get_record(pool).await.unwrap();
     let res = json!({
             "status": 0,
-            "data":{"friends": result},
+            "data":{"messagelist": result},
             "msg":"sucess"
     });
     HttpResponse::Ok()

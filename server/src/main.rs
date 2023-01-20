@@ -25,7 +25,7 @@ use sqlx::{
 };
 
 mod controll;
-use controll::{user,friend};
+use controll::{user, friend, message};
 mod appState;
 use appState::AppState;
 mod entity;
@@ -61,6 +61,9 @@ async fn start_actix() -> std::io::Result<()> {
             .service(user::search_user_by_name)
             .service(user::search_user_by_id)
             .service(friend::create_friend)
+            .service(friend::get_list)
+            .service(message::add_message)
+            .service(message::get_message_list)
         })
         .bind("127.0.0.1:8080")?
         .run()
