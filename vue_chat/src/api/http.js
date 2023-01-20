@@ -93,7 +93,7 @@ instance.interceptors.response.use(
     // 与后端约定好接口规范，如格式：{status:0,data:[],msg:''}，状态码最好根据业务来确定。
     let res = response.data // 接口返回值
     let path = location.hash; // 获取当前路由hash
-    if (res.status == 0) {
+    if (res.status == 0 || res.status == 400) {
       // console.log("here");
       return Promise.resolve(res.data);
     } else if (res.status == 10) { //没有登录

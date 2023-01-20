@@ -17,7 +17,7 @@ import "./assets/ifont/iconfont.css";
 // import '@/assets/scss/reset.scss'; // 引入重置样式表（覆盖浏览器用户代理样式）
 
 // mock开关
-const mock = true;
+const mock = false;
 // // 运行时根据条件动态加载
 if (mock) {
   require('./mock/mock.js')
