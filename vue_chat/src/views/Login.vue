@@ -77,12 +77,12 @@ export default {
   },
   methods: {
     //ws部分
-    wsinit(uname){
+    wsinit(id,uname){
       if(typeof(WebSocket) === "undefined"){
           alert("您的浏览器不支持socket")
       }else{
           // 实例化socket
-          this.socket = new WebSocket(this.path+uname)
+          this.socket = new WebSocket(this.path+id+'/'+uname)
           // 监听socket连接
           this.socket.onopen = this.open
           // 监听socket错误信息
@@ -131,7 +131,7 @@ export default {
       this.$api.userApi.login(uname,pword).then((result)=>{
         if(result.result){
           //登录成功，连接ws
-          this.wsinit(uname);
+          this.wsinit(result.id,uname);
           //传入参数
           this.$api.userApi.getUserById({id:result.id}).then((res)=>{
             this.user = res.user;
