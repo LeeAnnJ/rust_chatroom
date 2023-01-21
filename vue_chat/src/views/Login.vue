@@ -34,7 +34,11 @@
       </div>
     </div>
     <!-- 这里还没改 -->
-    <room v-else />
+    <room v-else
+      :user="user"
+      :userList="userList"
+      ref="chatroom"
+    />
     <!-- <room
       v-else
       :user="user"
@@ -55,15 +59,57 @@ export default {
   components: { Room },
   data() {
     return {
-      socket: null,
       isShow: true,
       showWarn: false,
       user: {}, //當前用戶
       userList: [], //好友列表
       message: {},
+      //ws部分
+      path:"ws://localhost:8080/ws/", // todo 后端ws地址
+      socket: null,
     }
   },
+  mounted(){
+    // this.wsinit();
+  },
+  destroyed(){
+    this.socket.onclose = this.close;
+  },
   methods: {
+    //ws部分
+    wsinit(id,uname){
+      if(typeof(WebSocket) === "undefined"){
+          alert("您的浏览器不支持socket")
+      }else{
+          // 实例化socket
+          this.socket = new WebSocket(this.path+id+'/'+uname)
+          // 监听socket连接
+          this.socket.onopen = this.open
+          // 监听socket错误信息
+          this.socket.onerror = this.error
+          // 监听socket消息
+          this.socket.onmessage = this.getMessage
+      }
+    },
+    open(){
+      console.log("socket连接成功");
+    },
+    error(){
+      console.log("连接错误");
+    },
+    getMessage(msg){
+      console.log("收到ws消息");
+      // console.log(msg.data);
+      this.$refs.chatroom ? this.$refs.chatroom.handlewsmes(msg.data) : null
+    },
+    send(mes){
+      this.socket.send(mes);
+    },
+    close(){
+      // 在room退出时调用或此窗体destroy
+      console.log("socket已关闭");
+    },
+    //功能部分
     returnLogin(){
       this.isShow = true;
     },
@@ -84,6 +130,9 @@ export default {
       }
       this.$api.userApi.login(uname,pword).then((result)=>{
         if(result.result){
+          //登录成功，连接ws
+          this.wsinit(result.id,uname);
+          //传入参数
           this.$api.userApi.getUserById({id:result.id}).then((res)=>{
             this.user = res.user;
           })
@@ -99,43 +148,6 @@ export default {
       })
     },
   },
-  mounted() {
-    /**
-     * 聊天室的主要功能
-     */
-    // 1.连接服务器
-    // baseURL:process.env.VUE_APP_URL || "/admin/api",
-    // this.socket = io(process.env.VUE_APP_URL || "/")
-    // 2.监听登录失败的请求
-    // this.socket.on('userExit', (data) => alert(data.msg))
-    // 3.监听登录成功的请求
-    // this.socket.on('loginsuccess', (data) => {
-    //   alert(data.msg)
-    //   this.user = data
-    //   this.isShow = false
-    // })
-    // this.socket.on('addUser', (data) => {
-    //   this.$store.commit('setJoinRoom', data)
-    // })
-    // this.socket.on('leaveroom', (data) => {
-    //   this.$store.commit('setLeaveRoom', data)
-    //   this.$refs.chatroom ? this.$refs.chatroom.haveOneleaveRoom() : null
-    // })
-    // 监听用户列表的信息
-    // this.socket.on('userList', (data) => {
-    //   this.userList = data
-    // })
-    // 监听聊天的消息
-    // this.socket.on('receiveMessage', (data) => {
-    //   // 把接收到的消息显示到聊天窗口中
-    //   this.message = data
-    // })
-    // 监听图片的消息
-    // this.socket.on('receiveImage', (data) => {
-    //   // 把接收到的图片显示到聊天窗口中
-    //   this.$refs.chatroom.handleImage(data)
-    // })
-  }
 }
 </script>
 

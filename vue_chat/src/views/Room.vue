@@ -1,5 +1,6 @@
 <template>
   <div class="Room" ref="room">
+    <friend v-if="addF" :uid="user.ID" />
     <div class="room-left">
       <div class="user">
         <span class="icon iconfont icon-wode"></span>
@@ -17,14 +18,17 @@
         <span class="icon iconfont icon-guanbi1"></span>
         <span class="iname">退出</span>
       </div>
-      
     </div>
 
     <div class="room-center">
       <div class="center-h">
-        <p v-if="isGroup">群聊列表</p>
-        <p v-else>好友列表</p>
-        <p />
+        <div class="bar" v-if="isGroup">群聊列表</div>
+        <div v-else>
+          <div class="bar">好友列表</div>
+          <span class="addf iconfont icon-faqi" @click="addFriends"></span>
+        </div>
+        
+        
       </div>
       <div class="center-b">
         <div v-if="isGroup">
@@ -33,7 +37,7 @@
           </li>
         </div>
         <div v-else>
-          <li class="user-item" v-for="item in userList" :key="item.uName" @click="changeWindow(item.uName)">
+          <li class="user-item" v-for="item in userList" :key="item.uName" @click="changeWindow(item.ID,item.uName)">
             <span>{{item.uName}}</span>
           </li>
         </div>
@@ -55,8 +59,8 @@
                 <p class="time">{{item.time}}</p>
               </div>
               <!-- 他人信息 -->
-              <div v-if="item.type ===2">
-                <span class="content">{{item.msg}}</span>
+              <div v-if="item.type === 2">
+                <span class="mes">{{item.msg}}</span>
                 <p class="username">{{item.username}}</p>  
                 <p class="time">{{item.time}}</p>
               </div>
@@ -64,7 +68,10 @@
         </div>
         </div>
         <div class="MessageBox">
-            <div class="iconbar"></div>
+            <div class="iconbar">
+              <span class="history iconfont icon-xiaoxi" v-if="!ispublic" @click="showHistory()"/>
+              <history v-if="showHis" :uid="user.ID" :uName="user.uName" :fid="wID" :fName="title"/>
+            </div>
             <textarea cols="80" rows="5" ref="textarea" @keyup.enter="handlePress"></textarea>
             <button class="sendMessage" @click="sendContentToServe">发送</button>
         </div>
@@ -74,11 +81,14 @@
 </template>
 
 <script>
+import Friend from '@/components/Friend.vue';
+import History from '@/components/History.vue';
   export default {
     name: 'Room',
+    components:{Friend,History},
     props: {
-      // user: Object,
-      // userList: Array,
+      user: Object,
+      userList: Array,
       // message: Object,
     },
     computer: {
@@ -88,25 +98,29 @@
     },
     data() {
       return {
-        username: 'test',
+        username: '', // 当前用户名
         title: '公共聊天室',  //用於聊天框頂部顯示
         isGroup: false, // 用于切换好友群聊列表
         ispublic: true, //用於判斷是否和好友私聊
-        messageContent: [],
-        content: '',
-        user: {username:'test'},
-        userList: [{
-                "ID": 3,
-                "uName": "xixi"
-            },{
-                "ID": 2,
-                "uName": "nono"
-            }
-        ],
+        wID: 0,  // 当私聊时好友的ID
+        wName: '',  //私聊好友名称
+        addF: false, // 控制好友添加窗口
+        showHis: false,
+        messageContent: [], //当前视窗的消息记录
+        content: '',  
         groupList:[{"gName":"公共聊天室"}]
       }
     },
+    mounted(){
+      this.username = this.user.uName;
+    },
+    destroyed(){
+      this.$parent.close();
+    },
     methods: {
+      showHistory(){
+        this.showHis = !this.showHis;
+      },
       showGroup(){
         this.isGroup = true;
       },
@@ -116,18 +130,53 @@
       goLogin(){
         this.$parent.returnLogin();
       },
-      changeWindow(uName){
+      changeWindow(ID,uName){
         this.ispublic = false;
+        // 更改title 更改聯繫人
         this.title = uName;
+        this.wID = ID;
+        this.wName = uName;
         // 清屏
         this.messageContent = [];
-        // 更改title 更改聯繫人
+        let params = {
+          "user":this.user.ID,
+          "friend":ID
+        };
+        // ws传输映射 /turn ID
+        this.$parent.send("/turn "+ID);
+        let ids = [];
+        // 获取未读信息
+        this.$api.mesApi.getList(params).then((res)=>{
+          // console.log(res.messagelist);
+          let allmes = res.messagelist;
+          for(var i=allmes.length-1; i>=0; i-- ){
+            // console.log(allmes[i]);
+            if(!allmes[i].isread && allmes[i].sID==ID){
+              let newValue={
+                "username":uName, 
+                "msg": allmes[i].mes, 
+                "time": this.parseTime(allmes[i].sTime),
+              };
+              this.handleMessageBox(newValue);
+              ids.push(allmes[i].mesID);
+            }
+          }
+          if(ids.length>0){
+            //标记为已读
+            this.$api.mesApi.setRead({"ids":ids}).then((res)=>{
+              // console.log(res);
+            });
+          }
+        })
+
       },
       goPublic(){
         this.title = "公共聊天室";
         this.ispublic = true;
         // 清屏
         this.messageContent = [];
+        //ws 传输映射 /turn 0
+        this.$parent.send("/turn 0");
       },
       handlePress(){
         let tmp = this.$refs.textarea.value
@@ -138,6 +187,10 @@
         // }
         this.sendContentToServe()
       },
+      // 数据库加入消息时 如果有单引号要处理
+      format(content){
+        return content.replace(/'/g,"''");
+      },
       sendContentToServe() {
         // 获取到聊天的内容
         this.content = (this.$refs.textarea.value).trim()
@@ -146,15 +199,38 @@
           return alert('请输入内容')
         }
         
-        let newValue = {username:this.username, msg:this.content, time:this.getTime()};
+        let newValue = {"username":this.username, "msg":this.content, "time":this.getTime()};
         this.handleMessageBox(newValue);
-        // 发送给服务器
-        // sendServer是Login里的那个父函数
-        // this.$emit('sendServer', this.content)
+        // ws通信 按类型分发
+        // 群聊消息
+        if(this.isGroup){
+          // ws传输
+          let params={
+            "ispublic":true,
+            "sID":this.user.ID,
+            "sName":this.user.uName,
+            "rID":0,
+            "mes":this.content,
+            "time":this.getTime(),
+          };
+          this.$parent.send(params);
+        }
+        else{
+          let params={
+            "ispublic":false,
+            "sID":this.user.ID,
+            "rID":this.wID,
+            "mes":this.content,
+            "time":this.getTime(),
+          }
+          this.$parent.send(params);
+          // ws传输
+        }
+
       },
       handleMessageBox(newValue) {
         // console.log(newValue);
-        if (newValue.username === this.user.username) {
+        if (newValue.username == this.user.uName) {
           //是自己发的信息
           this.messageContent.push({ ...newValue, type: 1 })
           // this.messageContent.push({ ...newValue, type: 2 }) //debug用
@@ -183,6 +259,45 @@
             m = this.checkTime(m),
             s = this.checkTime(s);
         return h+":"+m+":"+s;
+      },
+      closeSearch(){
+        this.addF = false;
+        console.log("close");
+      },
+      addFriends(){
+        this.addF = !this.addF;
+        console.log("add");
+      },
+      addUser(user){
+        this.userList.push(user);
+        console.log("here");
+        console.log(this.userList);
+      },
+      parseTime(time){
+        if (time==null) return "暂无";
+        var date = new Date(time);
+        let monthString = date.getMonth()+1>=10? String(date.getMonth()+1): '0'+(date.getMonth()+1);
+        let dtString = date.getDate()>=10? String(date.getDate()):'0' + date.getDate(); 
+        let hourString = date.getHours()>=10? String(date.getHours()):'0'+date.getHours();
+        let minuString = date.getMinutes()>=10? String(date.getMinutes()):'0'+date.getMinutes();
+        let secondString = date.getSeconds()>=10? String(date.getSeconds()):'0'+date.getSeconds();
+        let str=date.getFullYear()+'-'+monthString+'-'+dtString+' '+hourString+':'+minuString+':'+secondString;
+        return str;
+      },
+      handlewsmes(obj){
+        if(obj.isPublic == this.ispublic){
+          if(obj.isPublic){
+            // 接收群聊信息
+            let newValue = {"username":obj.sName, "msg":obj.mes, "time":obj.time};
+            this.handleMessageBox(newValue);
+          }
+          else{
+            if(obj.sID != this.wID) return;
+            // 接收私聊信息
+            let newValue = {"username":this.wName,"msg":obj.mes, "time":obj.time};
+            this.handleMessageBox(newValue);
+          }
+        }
       }
     },
     updated() {
@@ -209,6 +324,7 @@
       display: block;
       font-family: iconfont !important;
       font-style: normal;
+      // cursor: pointer;
     }
     .user,.friend,.group,.exit{
       padding-bottom: 10px;
@@ -226,7 +342,9 @@
       color: white;
       height: 30px;
       font-size: 24px;
-      
+      .history{
+        cursor: pointer;
+      }
     }
     .active {
       color: #ecf0f1;
@@ -246,8 +364,14 @@
       height: 20px;
       border-bottom: 1px solid #e5e5e58c;
       box-shadow: 1px 1px 1px #b2c0c9;
-      display: flex;
+      // display: flex;
       align-items: center;
+      .addf{
+        position: relative;
+        left:70px;
+        bottom: 18px;
+        cursor: pointer;
+      }
       img {
         width: 50px;
         height: 50px;
@@ -262,6 +386,7 @@
         align-items: center;
         margin-bottom: 1px;
         border-bottom: solid 1px #b2c0c9;
+        cursor: pointer;
         span {
           margin-left: 5px;
         }
@@ -292,8 +417,8 @@
       .myMes {
         display: flex;
         justify-content: flex-end;
-        margin-top: 15px;
-        margin-bottom: 15px;
+        padding-top: 15px;
+        padding-bottom: 15px;
         div {
           display: flex;
           position: relative;
@@ -311,7 +436,7 @@
           .name {
             position: absolute;
             right: 10px;
-            top: -28px;
+            top: -28px; 
             font-size: 13px;
             color: #7e7e7e;
 
@@ -329,8 +454,8 @@
         position: relative;
         display: flex;
         justify-content: flex-start;
-        margin-top: 15px;
-        margin-bottom: 15px;
+        padding-top: 15px;
+        padding-bottom: 15px;
         div {
           display: flex;
           position: relative;
@@ -343,7 +468,7 @@
             color: #7e7e7e;
           }
 
-          .content {
+          .mes {
             // margin-top: 12px;
             box-sizing: border-box;
             display: inline-block;
@@ -363,6 +488,7 @@
             bottom: -28px;
             font-size: 13px;
             color: #b2b2b2;
+            width: 120px;
           }
         }
       }
@@ -374,9 +500,13 @@
       background-color: #fff;
       .iconbar {
         height: 25px;
-        padding-top: 6px;
+        padding-top: 3px;
         display: flex;
         background-color: #d8d4d4;
+        .history {
+          margin-left: 10px;
+          font-size: 23px;
+        }
       }
       textarea {
         border: none;
