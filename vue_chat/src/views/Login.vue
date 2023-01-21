@@ -35,8 +35,6 @@
     </div>
     <!-- 这里还没改 -->
     <room v-else
-      :user="user"
-      :userList="userList"
       ref="chatroom"
     />
     <!-- <room
@@ -61,17 +59,19 @@ export default {
     return {
       isShow: true,
       showWarn: false,
-      user: {}, //當前用戶
-      userList: [], //好友列表
+      // user: {}, //當前用戶
+      // userList: [], //好友列表
+      result: {},
+      usname: '',
       message: {},
       //ws部分
-      path:"ws://localhost:8080/ws/", // todo 后端ws地址
+      path:"ws://127.0.0.1:8080/join/", // todo 后端ws地址
       socket: null,
     }
   },
-  mounted(){
-    // this.wsinit();
-  },
+  // mounted(){
+  //   // this.wsinit();
+  // },
   destroyed(){
     this.socket.onclose = this.close;
   },
@@ -93,16 +93,36 @@ export default {
     },
     open(){
       console.log("socket连接成功");
+      this.$api.userApi.getUserById({id:this.result.id}).then((res)=>{
+        let nuser = {
+          "ID":res.user.ID,
+          "uName":this.usname
+        };
+
+        this.$refs.chatroom ? this.$refs.chatroom.setUser(nuser) : null;
+      })
+
+      this.$api.friendApi.getList({id:this.result.id}).then((res)=>{
+        this.$refs.chatroom ? this.$refs.chatroom.setUserlist(res.friends) : null;
+      })
+      this.showWarn = false;
+      this.isShow = false;
     },
     error(){
       console.log("连接错误");
     },
     getMessage(msg){
       console.log("收到ws消息");
-      // console.log(msg.data);
-      this.$refs.chatroom ? this.$refs.chatroom.handlewsmes(JSON.parse(msg.data)) : null
+      console.log(msg.data);
+      let data = msg.data;
+      if(this.isJson(msg.data)){
+        data = JSON.parse(msg.data);
+      }
+      this.$refs.chatroom ? this.$refs.chatroom.handlewsmes(data) : null
     },
     send(mes){
+      console.log("send");
+      console.log(mes);
       this.socket.send(mes);
     },
     close(){
@@ -116,6 +136,21 @@ export default {
     goRegister(){
       this.$router.push('/Register');
     },
+    isJson(str){
+      if (typeof str == 'string') {
+        try {
+            let obj=JSON.parse(str);
+            if(typeof obj == 'object' && obj ){
+                return true;
+            }else{
+                return false;
+            }
+
+        } catch(e) {
+            return false;
+        }
+      }
+    },
     loginRoom() {
       // 1.获取用户名
       const uname = this.$refs.inputUsername.value
@@ -128,19 +163,31 @@ export default {
         alert('请输入密码')
         return
       }
-      this.$api.userApi.login(uname,pword).then((result)=>{
-        if(result.result){
+      this.$api.userApi.login(uname,pword).then((res)=>{
+        if(res.result){
           //登录成功，连接ws
-          this.wsinit(result.id,uname);
-          //传入参数
-          this.$api.userApi.getUserById({id:result.id}).then((res)=>{
-            this.user = res.user;
-          })
-          this.$api.friendApi.getList({id:result.id}).then((res)=>{
-            this.userList = res.friends;
-          })
-          this.showWarn = false;
-          this.isShow = false;
+          this.result = res;
+          console.log(this.result);
+          this.usname = uname;
+          this.wsinit(res.id,uname);
+          // 如果socket成功才跳转
+
+          // 这里就算socket连接错误，也会进入页面的
+          // //传入参数
+          // this.$api.userApi.getUserById({id:result.id}).then((res)=>{
+          //   let nuser = {
+          //     "ID":res.user.ID,
+          //     "uName":uname
+          //   };
+
+          //   this.$refs.chatroom ? this.$refs.chatroom.setUser(nuser) : null;
+          // })
+
+          // this.$api.friendApi.getList({id:result.id}).then((res)=>{
+          //   this.$refs.chatroom ? this.$refs.chatroom.setUserlist(res.friends) : null;
+          // })
+          // this.showWarn = false;
+          // this.isShow = false;
         }
         else{
           this.showWarn = true;

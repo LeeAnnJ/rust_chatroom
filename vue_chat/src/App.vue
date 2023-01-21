@@ -2,8 +2,8 @@
   <div id="app">
     <nav>
       <router-link to="/Login">Login</router-link> |
-      <router-link to="/Register">Register</router-link>  |
-      <router-link to="/Room">Room</router-link>
+      <router-link to="/Register">Register</router-link>  
+      <!-- <router-link to="/Room">Room</router-link> -->
     </nav>
     <router-view/>
   </div>
@@ -24,7 +24,7 @@ nav {
 
   a {
     font-weight: bold;
-    color: #2c3e50;
+    color: #fff;
 
     &.router-link-exact-active {
       color: #f1b6f9;

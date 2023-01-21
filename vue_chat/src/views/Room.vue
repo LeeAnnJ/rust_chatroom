@@ -87,8 +87,6 @@ import History from '@/components/History.vue';
     name: 'Room',
     components:{Friend,History},
     props: {
-      user: Object,
-      userList: Array,
       // message: Object,
     },
     computer: {
@@ -98,6 +96,8 @@ import History from '@/components/History.vue';
     },
     data() {
       return {
+        user: '',
+        userList: [],
         username: '', // 当前用户名
         title: '公共聊天室',  //用於聊天框頂部顯示
         isGroup: false, // 用于切换好友群聊列表
@@ -114,12 +114,20 @@ import History from '@/components/History.vue';
       }
     },
     mounted(){
-      this.username = this.user.uName;
+      // this.goPublic();
     },
     destroyed(){
       this.$parent.close();
     },
     methods: {
+      setUser(user){
+        this.user = user;
+
+        this.username = user.uName;
+      },
+      setUserlist(userlist){
+        this.userList = userlist;
+      },
       showHistory(){
         this.showHis = !this.showHis;
       },
@@ -149,10 +157,8 @@ import History from '@/components/History.vue';
         let ids = [];
         // 获取未读信息
         this.$api.mesApi.getList(params).then((res)=>{
-          // console.log(res.messagelist);
           let allmes = res.messagelist;
           for(var i=allmes.length-1; i>=0; i-- ){
-            // console.log(allmes[i]);
             if(!allmes[i].isread && allmes[i].sID==ID){
               let newValue={
                 "username":uName, 
@@ -166,7 +172,6 @@ import History from '@/components/History.vue';
           if(ids.length>0){
             //标记为已读
             this.$api.mesApi.setRead({"ids":ids}).then((res)=>{
-              // console.log(res);
             });
           }
         })
@@ -200,15 +205,14 @@ import History from '@/components/History.vue';
         if (!this.content) {
           return alert('请输入内容')
         }
-        
         let newValue = {"username":this.username, "msg":this.content, "time":this.getTime()};
         this.handleMessageBox(newValue);
         // ws通信 按类型分发
         // 群聊消息
-        if(this.isGroup){
+        if(this.ispublic){
           // ws传输
           let params={
-            "ispublic":true,
+            "isPublic":true,
             "sID":this.user.ID,
             "sName":this.user.uName,
             "rID":0,
@@ -222,7 +226,7 @@ import History from '@/components/History.vue';
           this.$parent.send("/check "+this.wID);
           // ws传输信息
           let params={
-            "ispublic":false,
+            "isPublic":false,
             "sID":this.user.ID,
             "rID":this.wID,
             "mes":this.content,
@@ -235,7 +239,7 @@ import History from '@/components/History.vue';
           let sqlp = {
             "send":this.user.ID,
             "recieve":this.wID,
-            "mes":this.format(this.content),
+            "message":this.format(this.content),
             "isRead":false
           };
           this.ressqllist.push(sqlp);
@@ -243,7 +247,6 @@ import History from '@/components/History.vue';
 
       },
       handleMessageBox(newValue) {
-        // console.log(newValue);
         if (newValue.username == this.user.uName) {
           //是自己发的信息
           this.messageContent.push({ ...newValue, type: 1 })
@@ -252,7 +255,6 @@ import History from '@/components/History.vue';
           //是别人发的信息
           this.messageContent.push({ ...newValue, type: 2 })
         }
-        // console.log(this.messageContent);
       },
       handleScrollBottom() {
         const scoll = this.$refs.chat
@@ -276,43 +278,43 @@ import History from '@/components/History.vue';
       },
       closeSearch(){
         this.addF = false;
-        console.log("close");
       },
       addFriends(){
         this.addF = !this.addF;
-        console.log("add");
       },
       addUser(user){
         this.userList.push(user);
-        console.log("here");
-        console.log(this.userList);
       },
       parseTime(time){
         if (time==null) return "暂无";
         var date = new Date(time);
         let monthString = date.getMonth()+1>=10? String(date.getMonth()+1): '0'+(date.getMonth()+1);
         let dtString = date.getDate()>=10? String(date.getDate()):'0' + date.getDate(); 
-        let hourString = date.getHours()>=10? String(date.getHours()):'0'+date.getHours();
+        let hourString = ((date.getHours()+8)%24)>=10? String((date.getHours()+8)%24):'0'+(date.getHours()+8)%24;
         let minuString = date.getMinutes()>=10? String(date.getMinutes()):'0'+date.getMinutes();
         let secondString = date.getSeconds()>=10? String(date.getSeconds()):'0'+date.getSeconds();
         let str=date.getFullYear()+'-'+monthString+'-'+dtString+' '+hourString+':'+minuString+':'+secondString;
         return str;
       },
       handlewsmes(obj){
+        if (!(typeof obj == 'object' && obj)) {
+          return;
+        }
         // 法二部分 判断是不是check返回的信息
         // 如果是 流程结束后return
         if("result" in obj){
+          if(this.ispublic)  return;
           let result = obj.result;
           // 要不要判断check返回的对应id？
           // 取check的结果 x
-          let resws = reswslist.pop();
-          let ressql = ressqllist.pop();
+          let resws = this.reswslist.pop();
+          let ressql = this.ressqllist.pop();
           if(result){
             this.$parent.send(JSON.stringify(resws));
             ressql.isRead = true;
           }
-          this.$spi.mesApi.addmessage(ressql).then((res)=>{
-              console.log(res);
+          // if(this.ispublic) return;
+          this.$api.mesApi.addmessage(ressql).then(()=>{
           });
           return;
         }
@@ -515,12 +517,13 @@ import History from '@/components/History.vue';
           }
 
           .time {
+            text-align: left;
             position: absolute;
             left: 1px;
             bottom: -28px;
             font-size: 13px;
             color: #b2b2b2;
-            width: 120px;
+            width: 130px;
           }
         }
       }
