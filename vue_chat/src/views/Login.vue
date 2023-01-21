@@ -100,7 +100,7 @@ export default {
     getMessage(msg){
       console.log("收到ws消息");
       // console.log(msg.data);
-      this.$refs.chatroom ? this.$refs.chatroom.handlewsmes(msg.data) : null
+      this.$refs.chatroom ? this.$refs.chatroom.handlewsmes(JSON.parse(msg.data)) : null
     },
     send(mes){
       this.socket.send(mes);

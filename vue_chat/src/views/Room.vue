@@ -108,7 +108,9 @@ import History from '@/components/History.vue';
         showHis: false,
         messageContent: [], //当前视窗的消息记录
         content: '',  
-        groupList:[{"gName":"公共聊天室"}]
+        groupList:[{"gName":"公共聊天室"}],
+        reswslist:[],  //法二 缓存还未发送的ws消息
+        ressqllist:[]   //法二 缓存还未发送的ws消息对应的数据库信息
       }
     },
     mounted(){
@@ -213,9 +215,12 @@ import History from '@/components/History.vue';
             "mes":this.content,
             "time":this.getTime(),
           };
-          this.$parent.send(params);
+          this.$parent.send(JSON.stringify(params));
         }
         else{
+          // 法二部分：ws询问点对点
+          this.$parent.send("/check "+this.wID);
+          // ws传输信息
           let params={
             "ispublic":false,
             "sID":this.user.ID,
@@ -223,8 +228,17 @@ import History from '@/components/History.vue';
             "mes":this.content,
             "time":this.getTime(),
           }
-          this.$parent.send(params);
-          // ws传输
+          // 法二部分 下面这条要删掉
+          // this.$parent.send(params);
+          // 法二部分 要缓存信息加入下面这段
+          this.reswslist.push(params);
+          let sqlp = {
+            "send":this.user.ID,
+            "recieve":this.wID,
+            "mes":this.format(this.content),
+            "isRead":false
+          };
+          this.ressqllist.push(sqlp);
         }
 
       },
@@ -285,6 +299,24 @@ import History from '@/components/History.vue';
         return str;
       },
       handlewsmes(obj){
+        // 法二部分 判断是不是check返回的信息
+        // 如果是 流程结束后return
+        if("result" in obj){
+          let result = obj.result;
+          // 要不要判断check返回的对应id？
+          // 取check的结果 x
+          let resws = reswslist.pop();
+          let ressql = ressqllist.pop();
+          if(result){
+            this.$parent.send(JSON.stringify(resws));
+            ressql.isRead = true;
+          }
+          this.$spi.mesApi.addmessage(ressql).then((res)=>{
+              console.log(res);
+          });
+          return;
+        }
+        // 正常部分
         if(obj.isPublic == this.ispublic){
           if(obj.isPublic){
             // 接收群聊信息
