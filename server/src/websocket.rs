@@ -33,6 +33,7 @@ pub async fn chat_route(
             id: user.ID,
             hb: Instant::now(),
             name: user.uName,
+            room: 0,
             addr: srv.get_ref().clone(),
         },
         &req,

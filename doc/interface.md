@@ -196,6 +196,7 @@
     "send": "发送方id",
     "recieve": "接收方id",
     "message": "xxxx",
+    "isRead":true
 }
 ```
 不需要返回数据。

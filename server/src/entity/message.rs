@@ -21,13 +21,15 @@ use chrono::prelude::*;
 pub struct SendMessage{
     pub send: i32,
     pub recieve: i32,
-    pub message: String
+    pub message: String,
+    pub isRead: bool
 }
 
 impl SendMessage {
     // 增加消息记录
     pub async fn add_record (self, pool: &Pool<MySql>) -> Result<u64, sqlx::Error>{
-        let sql = format!("insert into meslog(sID,rID,mes,sTime) values({},{},'{}',NOW());",self.send,self.recieve,self.message);
+        let read = if self.isRead {1} else {0};
+        let sql = format!("insert into meslog(sID,rID,mes,sTime,isread) values({},{},\"{}\",NOW(),{});",self.send,self.recieve,self.message,read);
         let res = sqlx::query(&sql)
             .execute(pool)
             .await;

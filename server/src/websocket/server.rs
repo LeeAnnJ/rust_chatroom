@@ -1,15 +1,14 @@
 //! `ChatServer` is an actor. It maintains list of connection client session.
 //! And manages available rooms. Peers send messages to other peers in same
 //! room through `ChatServer`.
-
 use std::{
     collections::{HashMap,},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
-    },
+    }, 
+    i32,thread
 };
-
 use actix::prelude::*;
 use serde::{Serialize, Deserialize};
 use super::{ GrpMessage };
@@ -26,32 +25,6 @@ use sqlx::{
 #[rtype(result = "()")]
 pub struct Message(pub String);
 
-/// Message for chat server communications
-
-/// New chat session is created
-#[derive(Message)]
-#[rtype(usize)]
-pub struct Connect {
-    pub id: i32,
-    pub name: String,
-    pub addr: Recipient<Message>,
-}
-
-/// Session is disconnected
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct Disconnect {
-    pub id: i32,
-}
-
-/// Send message 
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct ClientMessage {
-    pub id: i32,
-    pub content: String
-}
-
 /// `ChatServer` manages chat rooms and responsible for coordinating chat session.
 ///
 /// Implementation is very naïve.
@@ -59,6 +32,7 @@ pub struct ClientMessage {
 pub struct ChatServer {
     sessions: HashMap<i32, Recipient<Message>>,
     clients: HashMap<i32, String>,
+    window_map :HashMap<i32,i32>,
     visitor_count: Arc<AtomicUsize>,
     pool: Pool<MySql>
 }
@@ -69,6 +43,7 @@ impl ChatServer {
         ChatServer {
             sessions: HashMap::new(),
             clients: HashMap::new(),
+            window_map: HashMap::new(),
             visitor_count,
             pool
         }
@@ -105,6 +80,15 @@ impl Actor for ChatServer {
     type Context = Context<Self>;
 }
 
+/// New chat session is created
+#[derive(Message)]
+#[rtype(usize)]
+pub struct Connect {
+    pub id: i32,
+    pub name: String,
+    pub addr: Recipient<Message>,
+}
+
 /// Handler for Connect message.
 ///
 /// Register new session and assign unique id to this session
@@ -126,6 +110,8 @@ impl Handler<Connect> for ChatServer {
         self.clients.insert(msg.id, msg.name.clone());
         // 存储用户地址
         self.sessions.insert(msg.id, msg.addr);
+        // 存储当前定向
+        self.window_map.insert(msg.id, 0);
 
         let count = self.visitor_count.fetch_add(1, Ordering::SeqCst);
         self.send_message( &format!("Total visitors {count}"), 0);
@@ -135,6 +121,13 @@ impl Handler<Connect> for ChatServer {
     }
 }
 
+/// Session is disconnected
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Disconnect {
+    pub id: i32,
+}
+
 /// Handler for Disconnect message.
 impl Handler<Disconnect> for ChatServer {
     type Result = ();
@@ -142,13 +135,6 @@ impl Handler<Disconnect> for ChatServer {
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
         println!("Someone disconnected");
 
-        let mut rooms: Vec<String> = Vec::new();
-
-        // remove address
-        if self.sessions.remove(&msg.id).is_some() {
-            self.clients.remove(&msg.id);
-        }
-        
         // send message to other users
         let sName = self.clients.get(&msg.id).unwrap();
         let message = GrpMessage {
@@ -158,8 +144,21 @@ impl Handler<Disconnect> for ChatServer {
             rID:0,
             mes: format!("{} leave the room.",sName)
         };
+        // remove address
+        if self.sessions.remove(&msg.id).is_some() {
+            self.clients.remove(&msg.id);
+            self.window_map.remove(&msg.id);
+        }
         self.send_message(message.to_string().as_str(), 0);
     }
+}
+
+/// Send message 
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct ClientMessage {
+    pub id: i32,
+    pub content: String
 }
 
 /// Handler for Message message.
@@ -172,7 +171,7 @@ impl Handler<ClientMessage> for ChatServer {
 }
 
 // 私聊信息
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct PvtMessage {
@@ -196,9 +195,51 @@ impl Handler<PvtMessage> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: PvtMessage, _: &mut Context<Self>) {
+        let mut flag = false;
+        let message = msg.clone();
         if self.clients.get(&msg.rID).is_some() {
+            let map = self.window_map.get(&msg.rID).unwrap();
+            if msg.sID == *map {flag=true;}
+        }
+        if flag {
             let id = msg.rID;
             self.send_message_spc(msg.to_string().as_str(), id);
         }
+    }
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Join{
+    pub user: i32,
+    pub map: i32
+}
+
+impl Handler<Join> for ChatServer {
+    type Result = ();
+
+    fn handle(&mut self, msg: Join, _: &mut Context<Self>) {
+        *self.window_map.entry(msg.user).or_insert(0) = msg.map;
+    }
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Check{
+    pub user: i32,
+    pub map: i32
+}
+
+impl Handler<Check> for ChatServer {
+    type Result = ();
+
+    fn handle(&mut self, msg: Check, _: &mut Context<Self>) {
+        let mut flag = false;
+        if self.clients.get(&msg.map).is_some() {
+            let map = self.window_map.get(&msg.map).unwrap();
+            if msg.user == *map {flag=true;}
+        }
+        let message = format!("{{\"result\":{}}}",flag);
+        self.send_message_spc(message.as_str(),msg.user);
     }
 }

@@ -40,6 +40,7 @@ pub struct WsChatSession {
     pub id: i32,     // 用户账号
     pub hb: Instant, // 心跳检测时间
     pub name: String, // 用户名
+    pub room: i32, //当前窗口
     pub addr: Addr<server::ChatServer>, // 服务器地址
 }
 
@@ -136,21 +137,52 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
             }
             ws::Message::Text(text) => {
                 let m = text.trim();
-                // we check for /sss type of messages
-                let value:Value = serde_json::from_str(m).unwrap();
-                let ispublic = &value["isPublic"];
-                                // send message to chat server
-                if *ispublic == json!(true){
-                    let msg: GrpMessage = serde_json::from_str(m).unwrap();
-                    self.addr.do_send(server::ClientMessage {
-                        id: msg.sID,
-                        content: msg.to_string()
-                    })
-                } else {
-                    let msg: PvtMessage = serde_json::from_str(m).unwrap();
-                    self.addr.do_send(msg)
-                }
+                if m.starts_with('/') {
+                    let v:Vec<&str> = m.splitn(2, ' ').collect();
+                    match v[0] {
+                        "/turn" => {
+                            if v.len() == 2 {
+                                self.room = v[1].to_owned().parse().unwrap();
+                                self.addr.do_send(server::Join {
+                                    user: self.id,
+                                    map: self.room
+                                });
 
+                                ctx.text("{\"result\":true,\"message\":\"turned map.\"}");
+                            } else {
+                                ctx.text("{\"result\":false,\"msg\":\"!!! map id is required}\"");
+                            }
+                        },
+                        "/check" => {
+                            if v.len() == 2 {
+                                let map = v[1].to_owned().parse().unwrap();
+                                self.addr.do_send(server::Check {
+                                    user: self.id,
+                                    map: map
+                                });
+                            } else {
+                                ctx.text("{\"result\":false,\"msg\":\"!!! map id is required}\"");
+                            }
+                        },
+                        _ => ctx.text(format!("!!! unknown command: {m:?}")),
+                    }
+                }
+                else {
+                    // we check for /sss type of messages
+                    let value:Value = serde_json::from_str(m).unwrap();
+                    let ispublic = &value["isPublic"];
+                                    // send message to chat server
+                    if *ispublic == json!(true){
+                        let msg: GrpMessage = serde_json::from_str(m).unwrap();
+                        self.addr.do_send(server::ClientMessage {
+                            id: msg.sID,
+                            content: msg.to_string()
+                        })
+                    } else {
+                        let msg: PvtMessage = serde_json::from_str(m).unwrap();
+                        self.addr.do_send(msg)
+                    }
+                }
             }
             ws::Message::Binary(_) => println!("Unexpected binary"),
             ws::Message::Close(reason) => {
