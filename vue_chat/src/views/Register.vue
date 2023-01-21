@@ -81,10 +81,12 @@ export default {
         // console.log(res.users.length);
         if(res.users.length > 0){
           this.showWarn = true;
+          this.showID = false;
         }
         else{
           this.$api.userApi.register({name:username,password:password}).then((res)=>{
             console.log(res);
+            this.showWarn = false;
             // userId = uid;
             this.showID = true;
           })

@@ -1,10 +1,15 @@
 <template>
   <div class="Room" ref="room">
-    <friend v-if="addF" :uid="user.ID" />
+    
     <div class="room-left">
-      <div class="user">
+      <div class="user" @click="showMymes()">
         <span class="icon iconfont icon-wode"></span>
         <span class="iname">个人</span>
+      </div>
+      <div class="Me" v-if="showMe">
+        <div class="title">个人信息</div>
+        <div class="text">ID: {{user.ID}}</div>
+        <div class="text">Name: {{user.uName}}</div>
       </div>
       <div class="friend" @click="showFriend()">
         <span class="icon iconfont icon-fenzu"></span>
@@ -43,7 +48,7 @@
         </div>
       </div>
     </div>
-
+    
     <div class="room-right">
         <div class="ChatContent" ref="chat">
           <div class="title">{{title}}</div>
@@ -76,7 +81,7 @@
             <button class="sendMessage" @click="sendContentToServe">发送</button>
         </div>
     </div>
-    
+    <friend v-if="addF" :uid="user.ID" />
   </div>
 </template>
 
@@ -105,7 +110,8 @@ import History from '@/components/History.vue';
         wID: 0,  // 当私聊时好友的ID
         wName: '',  //私聊好友名称
         addF: false, // 控制好友添加窗口
-        showHis: false,
+        showHis: false, // 显示聊天记录
+        showMe: false,  // 显示当前用户信息
         messageContent: [], //当前视窗的消息记录
         content: '',  
         groupList:[{"gName":"公共聊天室"}],
@@ -122,11 +128,13 @@ import History from '@/components/History.vue';
     methods: {
       setUser(user){
         this.user = user;
-
         this.username = user.uName;
       },
       setUserlist(userlist){
         this.userList = userlist;
+      },
+      showMymes(){
+        this.showMe = !this.showMe;
       },
       showHistory(){
         this.showHis = !this.showHis;
@@ -354,6 +362,25 @@ import History from '@/components/History.vue';
     flex-direction: column;
     align-items: center;
     padding-top: 10px;
+    .Me {
+      position: absolute;
+      width: 140px;
+      height: 80px;
+      left: 150px;
+      top: 60px;
+      background-color: #edecff;
+      border: 2px solid #272925;
+      border-radius: 5px;
+      .title {
+        border-bottom: 2px solid #ffffff;
+        margin-bottom: 5px;
+      }
+      .text {
+        padding-left: 10px;
+        padding-bottom: 4px;
+        text-align: left;
+      }
+    }
     .iconfont {
       display: block;
       font-family: iconfont !important;
