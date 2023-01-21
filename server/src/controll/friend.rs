@@ -10,7 +10,7 @@ use serde_json::json;
 use crate::appState::AppState;
 use crate::entity::{Relation,ReqID};
 
-// 添加好友关系
+// 添加好友关系 已测试
 #[post("/friend/create")]
 pub async fn create_friend (form: web::Json<Relation>, data: Data<AppState>) -> HttpResponse {
     let relation = form.into_inner();
@@ -35,6 +35,7 @@ pub async fn create_friend (form: web::Json<Relation>, data: Data<AppState>) -> 
     .json(res)
 }
 
+// 获取好友列表 已测试
 #[get("/friend/getList")]
 pub async fn get_list (form: web::Query<ReqID>, data: Data<AppState>) -> HttpResponse {
     let id = form.into_inner();

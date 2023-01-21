@@ -151,9 +151,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                     map: self.room
                                 });
 
-                                ctx.text("{\"result\":true,\"message\":\"turned map.\"}");
+                                // ctx.text("{\"result\":true,\"message\":\"turned map.\"}");
                             } else {
-                                ctx.text("{\"result\":false,\"msg\":\"!!! map id is required}\"");
+                                // ctx.text("{\"result\":false,\"msg\":\"!!! map id is required}\"");
                             }
                         },
                         "/check" => {

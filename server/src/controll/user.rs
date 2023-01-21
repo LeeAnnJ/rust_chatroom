@@ -10,7 +10,7 @@ use serde_json::json;
 use crate::appState::AppState;
 use crate::entity::{ReqID, Text, User};
 
-// 登录接口，使用结构体接收
+// 登录接口，使用结构体接收 已测试
 #[get("/user/login/{name}/{pass}")]
 pub async fn login(req: HttpRequest, data: Data<AppState>) -> HttpResponse{
     let user = User{
@@ -47,7 +47,7 @@ pub async fn login(req: HttpRequest, data: Data<AppState>) -> HttpResponse{
     }
 }
 
-// 注册接口
+// 注册接口 已测试
 #[post("/user/registor")]
 pub async fn registor(form: web::Json<User>, data: Data<AppState>) -> HttpResponse{
     let user = form.into_inner();
@@ -79,7 +79,7 @@ pub async fn registor(form: web::Json<User>, data: Data<AppState>) -> HttpRespon
         }))
 }
 
-// 根据用户名查询信息 接口方法 
+// 根据用户名查询信息 接口方法  已测试
 #[get("/user/getUserByName")]
 pub async fn search_user_by_name(req: web::Query<Text>, data: Data<AppState>) -> HttpResponse {
     let name=req.into_inner();
@@ -107,7 +107,7 @@ pub async fn search_user_by_name(req: web::Query<Text>, data: Data<AppState>) ->
         .json(res)
 }
 
-// 根据用户id返回用户
+// 根据用户id返回用户 已测试
 #[get("/user/getUserById")]
 pub async fn search_user_by_id(req: web::Query<ReqID>, data: Data<AppState>) -> HttpResponse {
     let id = req.into_inner();
@@ -136,6 +136,7 @@ pub async fn search_user_by_id(req: web::Query<ReqID>, data: Data<AppState>) -> 
     .json(res)
 }
 
+// 模糊查询接口 已测试
 #[get("user/search")]
 pub async fn search_user_fuzzy(req: web::Query<Text>, data: Data<AppState>) -> HttpResponse {
     let text = req.into_inner();

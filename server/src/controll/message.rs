@@ -35,7 +35,7 @@ pub async fn add_message (form: web::Json<SendMessage>, data: Data<AppState>) ->
     .json(res)
 }
 
-// 添加消息记录
+// 获取消息记录 已测试
 #[get("/message/getList")]
 pub async fn get_message_list (form: web::Query<Relation>, data: Data<AppState>) -> HttpResponse {
     let relation = form.into_inner();
@@ -52,6 +52,7 @@ pub async fn get_message_list (form: web::Query<Relation>, data: Data<AppState>)
     .json(res)
 }
 
+// 设置已读信息 已测试
 #[post("/message/setRead")]
 pub async fn set_message_read (form: web::Json<IDList>, data: Data<AppState>) -> HttpResponse {
     let meslist = form.into_inner();
