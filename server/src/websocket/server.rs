@@ -1,24 +1,18 @@
-//! `ChatServer` is an actor. It maintains list of connection client session.
-//! And manages available rooms. Peers send messages to other peers in same
-//! room through `ChatServer`.
+/**
+ * websocket服务器，处理由session发来的不同类型的信息
+ */ 
 use std::{
     collections::{HashMap,},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     }, 
-    i32,thread
+    i32
 };
 use actix::prelude::*;
 use serde::{Serialize, Deserialize};
 use super::{ GrpMessage };
-use crate::entity::SendMessage;
 
-extern crate sqlx;
-use sqlx::{
-    mysql::{MySqlPoolOptions, MySql},
-    Pool,FromRow, Row
-};
 
 /// Chat server sends this messages to session
 #[derive(Message)]
@@ -34,18 +28,15 @@ pub struct ChatServer {
     clients: HashMap<i32, String>,
     window_map :HashMap<i32,i32>,
     visitor_count: Arc<AtomicUsize>,
-    pool: Pool<MySql>
 }
 
 impl ChatServer {
-    pub fn new(visitor_count: Arc<AtomicUsize>, pool: Pool<MySql>) -> ChatServer {
-        // default room
+    pub fn new(visitor_count: Arc<AtomicUsize>) -> ChatServer {
         ChatServer {
             sessions: HashMap::new(),
             clients: HashMap::new(),
             window_map: HashMap::new(),
             visitor_count,
-            pool
         }
     }
 }
@@ -121,21 +112,20 @@ impl Handler<Connect> for ChatServer {
     }
 }
 
-/// Session is disconnected
+/// 断开会话
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Disconnect {
     pub id: i32,
 }
 
-/// Handler for Disconnect message.
 impl Handler<Disconnect> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
         println!("Someone disconnected");
 
-        // send message to other users
+        // 广播信息：用户离开房间
         let sName = self.clients.get(&msg.id).unwrap();
         let message = GrpMessage {
             isPublic: true,

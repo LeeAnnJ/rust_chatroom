@@ -1,3 +1,6 @@
+/**
+ * websocket 会话处理
+ */
 use std::{
     time::{Duration, Instant}
 };
@@ -100,13 +103,11 @@ impl Actor for WsChatSession {
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
-        // notify chat server
         self.addr.do_send(server::Disconnect { id: self.id });
         Running::Stop
     }
 }
 
-/// Handle messages from chat server, we simply send it to peer websocket
 impl Handler<server::Message> for WsChatSession {
     type Result = ();
 
@@ -115,7 +116,7 @@ impl Handler<server::Message> for WsChatSession {
     }
 }
 
-/// WebSocket message handler
+/// 消息处理
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         let msg = match msg {
@@ -168,10 +169,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                     }
                 }
                 else {
-                    // we check for /sss type of messages
                     let value:Value = serde_json::from_str(m).unwrap();
                     let ispublic = &value["isPublic"];
-                                    // send message to chat server
                     if *ispublic == json!(true){
                         let msg: GrpMessage = serde_json::from_str(m).unwrap();
                         self.addr.do_send(server::ClientMessage {

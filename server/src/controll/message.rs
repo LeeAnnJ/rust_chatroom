@@ -1,24 +1,11 @@
-use std::ptr::null;
-
-use serde::{Serialize, Deserialize};
 use actix_web::{
-    get, post, HttpRequest, HttpServer, web, error, HttpResponse, middleware, Either, Responder, Result, 
+    get, post,web, HttpResponse,
     web::Data,
     http::{
-        header::{self, ContentType},
-        Method, StatusCode,
+        header::ContentType,
     },
 };
 use serde_json::json;
-use async_stream::stream;
-
-extern crate sqlx;
-use sqlx::{
-    mysql::{MySqlPoolOptions, MySql},
-    Pool,Error,FromRow, Row
-};
-
-use chrono::prelude::*;
 
 use crate::appState::AppState;
 use crate::entity::{ SendMessage, Relation, IDList };

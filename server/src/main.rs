@@ -1,27 +1,14 @@
 use std::{
-    io, env,
-    time::Instant,
-    convert::Infallible,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::AtomicUsize,
         Arc,
     }
 };
 use actix::*;
-use actix_files::{Files, NamedFile};
 use actix_web::{
-    get, post, App, HttpRequest, HttpServer, web, error, Error, HttpResponse, middleware, Either, Responder, Result, 
+    App, HttpServer, web, error, HttpResponse, Result, 
     middleware::Logger,
-    web::Data,
-    http::{
-        header::{self, ContentType},
-        Method, StatusCode,
-    },
 };
-use actix_web_actors::ws::{self, Message, WebsocketContext};
-use serde::{Serialize, Deserialize};
-use serde_json::json;
-use async_stream::stream;
 
 // extern crate chrono;
 extern crate dotenv;
@@ -30,7 +17,7 @@ extern crate sqlx;
 use dotenv::dotenv;
 use sqlx::{
     mysql::{MySqlPoolOptions, MySql},
-    Pool,FromRow, Row
+    Pool
 };
 
 mod controll;
@@ -39,7 +26,7 @@ mod appState;
 use appState::AppState;
 mod entity;
 mod websocket;
-use websocket::{server, session};
+use websocket::server;
 
 #[actix_web::main]
 async fn start_actix() -> std::io::Result<()> {
@@ -65,7 +52,7 @@ async fn start_actix() -> std::io::Result<()> {
     // 记录群聊在线人数
     let app_state = Arc::new(AtomicUsize::new(0));
     // 群聊websocket服务
-    let server = server::ChatServer::new(app_state.clone(),db_pool.clone()).start();
+    let server = server::ChatServer::new(app_state.clone()).start();
 
     log::info!("starting HTTP server at http://127.0.0.1:8080");
     HttpServer::new(move || {

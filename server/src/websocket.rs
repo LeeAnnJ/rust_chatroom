@@ -1,15 +1,11 @@
 use std::{
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicUsize, Ordering},
     time::Instant,
 };
 
 use actix::*;
-use actix_files::{Files, NamedFile};
 use actix_web::{
-    middleware::Logger, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
+    web, Error, HttpRequest, HttpResponse,  Responder,
 };
 use actix_web_actors::ws;
 

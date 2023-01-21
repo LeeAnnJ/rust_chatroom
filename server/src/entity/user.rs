@@ -1,21 +1,10 @@
-use std::ptr::null;
-
 use serde::{Serialize, Deserialize};
-use actix_web::{
-    get, post, HttpRequest, HttpServer, web, error, HttpResponse, middleware, Either, Responder, Result, 
-    web::Data,
-    http::{
-        header::{self, ContentType},
-        Method, StatusCode,
-    },
-};
-use serde_json::json;
-use async_stream::stream;
+use actix_web::Result;
 
 extern crate sqlx;
 use sqlx::{
-    mysql::{MySqlPoolOptions, MySql},
-    Pool,Error,FromRow, Row
+    mysql::MySql,
+    Pool, Row
 };
 
 // 使用于请求体的用户信息

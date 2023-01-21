@@ -1,22 +1,11 @@
-use std::ptr::null;
-
-use serde::{Serialize, Deserialize};
 use actix_web::{
-    get, post, HttpRequest, HttpServer, web, error, HttpResponse, middleware, Either, Responder, Result, 
+    get, post, HttpRequest, web, HttpResponse,
     web::Data,
     http::{
-        header::{self, ContentType},
-        Method, StatusCode,
+        header::ContentType,
     },
 };
 use serde_json::json;
-use async_stream::stream;
-
-extern crate sqlx;
-use sqlx::{
-    mysql::{MySqlPoolOptions, MySql},
-    Pool,Error,FromRow, Row
-};
 
 use crate::appState::AppState;
 use crate::entity::{ReqID, Text, User};
@@ -134,7 +123,7 @@ pub async fn search_user_by_id(req: web::Query<ReqID>, data: Data<AppState>) -> 
                 },
             })
         },
-        Err(e) => {
+        Err(_) => {
             json!({
                 "status": 400,
                 "data":{"user": null },
@@ -162,7 +151,7 @@ pub async fn search_user_fuzzy(req: web::Query<Text>, data: Data<AppState>) -> H
                 },
             })
         },
-        Err(e) => {
+        Err(_) => {
             json!({
                 "status": 400,
                 "data":{"user": null },

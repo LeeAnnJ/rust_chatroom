@@ -1,19 +1,10 @@
 use serde::{Serialize, Deserialize};
-use actix_web::{
-    Result, 
-    web::Data,
-    http::{
-        header::{self, ContentType},
-        Method, StatusCode,
-    },
-};
-use serde_json::json;
-use async_stream::stream;
+use actix_web::Result;
 
 extern crate sqlx;
 use sqlx::{
     mysql::{ MySql },
-    Pool,Error,FromRow, Row
+    Pool, Row
 };
 
 use super::{UserInfo, SimpleUser};
