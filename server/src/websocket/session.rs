@@ -24,7 +24,8 @@ pub struct GrpMessage {
     pub sID: i32,
     pub sName: String,
     pub rID: i32,
-    pub mes: String
+    pub mes: String,
+    pub time: String
 }
 
 impl GrpMessage {
@@ -33,7 +34,8 @@ impl GrpMessage {
             +"\"sID\": "+self.sID.to_string().as_str()+","
             +"\"sName\": \""+self.sName.as_str()+ "\","
             +"\"rID\": 0,"
-            +"\"mes\": \""+self.mes.as_str()+"\"}";
+            +"\"mes\": \""+self.mes.as_str()+"\","
+            +"\"time\": \""+self.time.as_str()+"\"}";
         res
     }
 }

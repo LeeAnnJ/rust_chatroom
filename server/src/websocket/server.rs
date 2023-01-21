@@ -11,6 +11,8 @@ use std::{
 };
 use actix::prelude::*;
 use serde::{Serialize, Deserialize};
+use chrono::prelude::*;
+
 use super::{ GrpMessage };
 
 
@@ -87,12 +89,14 @@ impl Handler<Connect> for ChatServer {
     type Result = usize;
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
+        let date = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
         let message = GrpMessage {
             isPublic: false,
             sID: msg.id,
             sName: String::from("Public"),
             rID: 0,
-            mes: format!("{} joined chatroom.",msg.name)
+            mes: format!("{} joined chatroom.",msg.name),
+            time: date
         };
         
         // 广播用户已经加入聊天室
@@ -127,12 +131,14 @@ impl Handler<Disconnect> for ChatServer {
 
         // 广播信息：用户离开房间
         let sName = self.clients.get(&msg.id).unwrap();
+        let date = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
         let message = GrpMessage {
             isPublic: true,
             sID: msg.id,
             sName: String::from("Public"),
             rID:0,
-            mes: format!("{} leave the room.",sName)
+            mes: format!("{} leave the room.",sName),
+            time: date
         };
         // remove address
         if self.sessions.remove(&msg.id).is_some() {
@@ -168,7 +174,8 @@ pub struct PvtMessage {
     pub isPublic: bool,
     pub sID: i32,
     pub rID: i32,
-    pub mes: String
+    pub mes: String,
+    pub time: String
 }
 
 impl PvtMessage {
@@ -176,7 +183,8 @@ impl PvtMessage {
         let str = String::from("{\"isPublic\": false,")
             +"\"sID\": "+self.sID.to_string().as_str()+","
             +"\"rID\": "+self.rID.to_string().as_str()+","
-            +"\"mes\": \""+self.mes.as_str()+"\"}";
+            +"\"mes\": \""+self.mes.as_str()+"\","
+            +"\"time\":\""+self.time.as_str()+"\"}";
         str.clone()
     }
 }
@@ -186,7 +194,7 @@ impl Handler<PvtMessage> for ChatServer {
 
     fn handle(&mut self, msg: PvtMessage, _: &mut Context<Self>) {
         let mut flag = false;
-        let message = msg.clone();
+        // let message = msg.clone();
         if self.clients.get(&msg.rID).is_some() {
             let map = self.window_map.get(&msg.rID).unwrap();
             if msg.sID == *map {flag=true;}

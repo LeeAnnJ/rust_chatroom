@@ -275,7 +275,7 @@
     "sID": 0,
     "rID": 0,
     "mes": "xxx",
-    "time": "xxx"
+    "time": "yyyy-MM-dd hh:mm:ss"
 }
 ```
 
